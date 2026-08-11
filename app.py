@@ -20,7 +20,7 @@ from pydrive.drive import GoogleDrive
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'shipping-company-secret-key-2024'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
+app.template_folder = 'templates'
 # هذا السطر هو التعديل الأهم (بيقرا رابط قاعدة البيانات من السيرفر)
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///shipping_company.db')
 
