@@ -15,7 +15,8 @@ from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
 # ==================== CONFIGURATION ====================
-app = Flask(__name__ )
+app = Flask(__name__, template_folder='templates', static_folder='static')
+
 app.config['SECRET_KEY'] = 'shipping-company-secret-key-2024'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
