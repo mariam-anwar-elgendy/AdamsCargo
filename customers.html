@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>👤 العملاء والمستحقات</h2>
+</div>
+
+<div class="row">
+    {% for item in customers_summary %}
+    <div class="col-md-6 col-lg-4 mb-3">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h5 class="card-title">{{ item.customer.name }}</h5>
+                    <a href="{{ url_for('customer_report', cid=item.customer.id) }}" class="btn btn-sm btn-outline-primary">تقرير</a>
+                </div>
+                <p class="text-muted small mb-2">📞 {{ item.customer.phone or 'لا يوجد' }}</p>
+                <div class="row mt-3">
+                    <div class="col-6 text-center border-end">
+                        <div class="text-muted small">إجمالي النولون</div>
+                        <div class="fw-bold">{{ item.total_nauloon }} ج.م</div>
+                    </div>
+                    <div class="col-6 text-center">
+                        <div class="text-muted small">المتبقي</div>
+                        <div class="fw-bold {% if item.remaining > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ item.remaining }} ج.م
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center text-muted py-5">
+        <h4>لا يوجد عملاء حتى الآن.</h4>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2 class="fw-bold text-primary">📊 لوحة التحكم</h2>
+        <p class="text-muted">مرحباً بك في نظام إدارة شركة الشحن</p>
+    </div>
+</div>
+
+<!-- إحصائيات سريعة -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary p-3">
+            <h5>📦 الرحلات</h5>
+            <h2 class="mb-0">{{ total_trips }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-success p-3">
+            <h5>👤 العملاء</h5>
+            <h2 class="mb-0">{{ total_customers }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning p-3">
+            <h5>🚗 العربيات</h5>
+            <h2 class="mb-0">{{ total_cars }}</h2>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-info p-3">
+            <h5>💰 صافي اليوم</h5>
+            <h2 class="mb-0">{{ today_net }} ج.م</h2>
+        </div>
+    </div>
+</div>
+
+<!-- إحصائيات مالية إضافية -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-3 bg-light">
+            <h5>🏦 رصيد البنك الحالي</h5>
+            <h3 class="text-success mb-0">{{ bank_balance }} ج.م</h3>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm p-3 bg-light">
+            <h5>💳 إجمالي متبقي القروض</h5>
+            <h3 class="text-danger mb-0">{{ total_loan_remaining }} ج.م</h3>
+        </div>
+    </div>
+</div>
+
+<!-- آخر الرحلات -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">📋 آخر 10 رحلات</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>العربية</th>
+                        <th>السائق</th>
+                        <th>العميل</th>
+                        <th>النولون</th>
+                        <th>الصافي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trip in recent_trips %}
+                    <tr>
+                        <td>{{ trip.date }}</td>
+                        <td>{{ trip.car.plate_number if trip.car else '-' }}</td>
+                        <td>{{ trip.driver_name }}</td>
+                        <td>{{ trip.customer.name if trip.customer else '-' }}</td>
+                        <td>{{ trip.nauloon }}</td>
+                        <td class="fw-bold text-success">{{ trip.net_profit }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">لا توجد رحلات حتى الآن</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

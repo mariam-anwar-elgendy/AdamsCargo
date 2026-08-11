@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📅 التقرير اليومي</h2>
+    <div>
+        <input type="date" id="datePicker" value="{{ report_date }}" class="form-control d-inline-block w-auto" onchange="window.location.href='/reports/daily?date='+this.value">
+        <a href="{{ url_for('export_daily_report', rd=report_date) }}" class="btn btn-success">📥 تصدير Excel</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-2"><div class="card p-3 text-center"><h6>النولون</h6><h4>{{ total_nauloon }} ج.م</h4></div></div>
+    <div class="col-2"><div class="card p-3 text-center"><h6>السولار</h6><h4>{{ total_solar }} ج.م</h4></div></div>
+    <div class="col-2"><div class="card p-3 text-center"><h6>المصاريف</h6><h4>{{ total_expenses }} ج.م</h4></div></div>
+    <div class="col-2"><div class="card p-3 text-center"><h6>أجرة السائق</h6><h4>{{ total_driver_pay }} ج.م</h4></div></div>
+    <div class="col-2"><div class="card p-3 text-center"><h6>صافي الربح</h6><h4 class="text-success">{{ total_net }} ج.م</h4></div></div>
+</div>
+
+<table class="table table-striped">
+    <thead><tr><th>العربية</th><th>السائق</th><th>العميل</th><th>النولون</th><th>الصافي</th></tr></thead>
+    <tbody>
+        {% for trip in trips %}
+        <tr>
+            <td>{{ trip.car.plate_number if trip.car else '-' }}</td>
+            <td>{{ trip.driver_name }}</td>
+            <td>{{ trip.customer.name if trip.customer else '-' }}</td>
+            <td>{{ trip.nauloon }}</td>
+            <td>{{ trip.net_profit }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

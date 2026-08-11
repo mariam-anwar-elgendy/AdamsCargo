@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>📊 تقرير العربية: {{ car.plate_number }}</h2>
+    <a href="{{ url_for('cars') }}" class="btn btn-secondary">رجوع</a>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3"><div class="card p-3 text-center"><h6>عدد الرحلات</h6><h4>{{ trip_count }}</h4></div></div>
+    <div class="col-md-3"><div class="card p-3 text-center"><h6>إجمالي النولون</h6><h4>{{ total_nauloon }} ج.م</h4></div></div>
+    <div class="col-md-3"><div class="card p-3 text-center"><h6>صافي الأرباح</h6><h4 class="text-success">{{ total_net }} ج.م</h4></div></div>
+</div>
+
+<h5 class="mt-4">📋 السائقين</h5>
+<ul class="list-group mb-4">
+    {% for name, count in drivers.items() %}
+    <li class="list-group-item d-flex justify-content-between"><span>{{ name }}</span> <span class="badge bg-secondary">{{ count }} رحلة</span></li>
+    {% endfor %}
+</ul>
+
+<h5>💳 الأقساط</h5>
+<table class="table">
+    <thead><tr><th>تاريخ الاستحقاق</th><th>المبلغ</th><th>الحالة</th></tr></thead>
+    <tbody>
+        {% for inst in installments %}
+        <tr>
+            <td>{{ inst.due_date }}</td>
+            <td>{{ inst.amount }}</td>
+            <td>{% if inst.paid %}✅ مدفوع{% else %}⏳ مستحق{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
