@@ -33,10 +33,13 @@
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('cars') }}">🚗 العربيات</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('installments') }}">💳 الأقساط</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('daily_report') }}">📅 التقرير اليومي</a></li>
+
+                        <!-- هذه الروابط تظهر فقط للأدمن -->
                         {% if session.role == 'admin' %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('bank') }}">🏦 البنك</a></li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('users') }}">👥 المستخدمين</a></li>
                         {% endif %}
+
                         <li class="nav-item"><a class="nav-link text-warning" href="{{ url_for('logout') }}">🚪 خروج</a></li>
                     {% endif %}
                 </ul>
