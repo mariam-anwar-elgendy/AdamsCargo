@@ -15,12 +15,15 @@ from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
 # ==================== CONFIGURATION ====================
-app = Flask(__name__, template_folder='templates', static_folder='static')
+app = Flask(__name__ )
 app.config['SECRET_KEY'] = 'shipping-company-secret-key-2024'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///shipping_company.db')
-if DATABASE_URL and DATABASE_URL.startswith('postgres://'):
+# التعديل الأهم هنا - سنعتمد فقط على متغير البيئة
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if not DATABASE_URL:
+    raise ValueError("❌ ERROR: DATABASE_URL environment variable is not set!")
+if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 
