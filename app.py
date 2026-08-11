@@ -20,19 +20,25 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = 'shipping-company-secret-key-2024'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 1. الحصول على رابط قاعدة البيانات من البيئة
+# 1. الحصول على رابط قاعدة البيانات من البيئة (أو استخدام الرابط المباشر)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
-    raise ValueError("❌ ERROR: DATABASE_URL environment variable is not set!")
+    # إذا لم يتم العثور على المتغير في البيئة، نستخدم الرابط المباشر
+    DATABASE_URL = 'postgresql://adamscargo_postgress_user:NTnTZ1hYiCXJ1nrUnAyCsQym8Xm5ViUc@dpg-d9tjhrqd0e5s739brvl0-a/adamscargo_postgress'
+
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# 2. ضبط اتصال قاعدة البيانات (بما في ذلك pool_pre_ping)
+# 2. ضبط اتصال قاعدة البيانات (مع إعدادات الصبر)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 5,
     'pool_recycle': 3600,
     'pool_pre_ping': True,
+    'pool_timeout': 30,          # وقت انتظار الاتصال
+    'connect_args': {
+        'connect_timeout': 10    # يحاول الاتصال لمدة 10 ثوانٍ قبل الإبلاغ عن خطأ
+    }
 }
 
 BACKUP_FOLDER_NAME = 'ShippingCompany_Backups'
@@ -738,13 +744,4 @@ def init_db():
             # 3. إضافة أقساط للعربيات
             inst1 = Installment(car_id=car1.id, due_date=date(2026, 9, 1), amount=5000, paid=False)
             inst2 = Installment(car_id=car1.id, due_date=date(2026, 10, 1), amount=5000, paid=True, payment_date=date.today())
-            inst3 = Installment(car_id=car2.id, due_date=date(2026, 8, 15), amount=7000, paid=False)
-            db.session.add_all([inst1, inst2, inst3])
-            db.session.commit()
-            print("✅ تمت إضافة 3 أقساط تجريبية (قسط واحد مدفوع)")
-
-if __name__ == '__main__':
-    init_db()
-    threading.Thread(target=scheduler_loop, daemon=True).start()
-    print("✅ Scheduler running")
-    # تم إزالة app.run() لأن Render سيشغله عبر gunicorn
+            inst3 = Installment(car_id=
