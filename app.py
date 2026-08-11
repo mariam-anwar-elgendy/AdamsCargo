@@ -20,13 +20,20 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = 'shipping-company-secret-key-2024'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# التعديل الأهم هنا - سنعتمد فقط على متغير البيئة
+# 1. الحصول على رابط قاعدة البيانات من البيئة
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     raise ValueError("❌ ERROR: DATABASE_URL environment variable is not set!")
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+
+# 2. ضبط اتصال قاعدة البيانات (بما في ذلك pool_pre_ping)
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_size': 5,
+    'pool_recycle': 3600,
+    'pool_pre_ping': True,
+}
 
 BACKUP_FOLDER_NAME = 'ShippingCompany_Backups'
 BACKUP_FOLDER_ID = None
