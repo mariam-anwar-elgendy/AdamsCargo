@@ -17,16 +17,14 @@ h1, h2, h3, h4, h5, h6 {
 .card {
     border-radius: 10px;
     border: none;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
 .card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .card-header {
-    border-radius: 10px 10px 0 0 !important;
+    border-radius: 10px 10px 0 0;
     font-weight: bold;
 }
 
@@ -65,7 +63,6 @@ h1, h2, h3, h4, h5, h6 {
 .form-control, .form-select {
     border-radius: 8px;
     border: 1px solid #ced4da;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .form-control:focus, .form-select:focus {
@@ -88,17 +85,17 @@ h1, h2, h3, h4, h5, h6 {
 /* تحسينات للطباعة */
 @media print {
     .navbar, .btn, .alert {
-        display: none !important;
+        display: none;
     }
     
     .card {
-        border: 1px solid #ddd !important;
-        box-shadow: none !important;
+        border: 1px solid #ddd;
+        box-shadow: none;
     }
     
     .card-header {
-        background-color: #f8f9fa !important;
-        color: #000 !important;
+        background-color: #f8f9fa;
+        color: #000;
     }
 }
 
@@ -126,7 +123,6 @@ h1, h2, h3, h4, h5, h6 {
 
 .dropdown-item {
     padding: 8px 20px;
-    transition: background-color 0.2s ease;
 }
 
 .dropdown-item:hover {
@@ -171,4 +167,38 @@ h1, h2, h3, h4, h5, h6 {
     padding: 1rem 0;
     background-color: #f8f9fa;
     text-align: center;
+}
+
+/* ==================== منع الاهتزاز والحركة الزائدة ==================== */
+* {
+    transition: none !important;
+    animation: none !important;
+}
+
+body {
+    overflow-y: auto !important;
+    scroll-behavior: auto !important;
+}
+
+.card {
+    transition: none !important;
+    transform: none !important;
+}
+
+.card:hover {
+    transform: none !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
+}
+
+.modal {
+    transition: none !important;
+}
+
+.modal.fade {
+    transition: none !important;
+}
+
+.alert {
+    transition: none !important;
+    animation: none !important;
 }
