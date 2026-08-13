@@ -1,46 +1,121 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>🏦 الحساب البنكي</h2>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModal">➕ إضافة معاملة</button>
-</div>
-
 <div class="row mb-4">
-    <div class="col-md-4"><div class="card p-3 text-center"><h6>الرصيد الحالي</h6><h3 class="{% if balance >= 0 %}text-success{% else %}text-danger{% endif %}">{{ balance }} ج.م</h3></div></div>
-    <div class="col-md-4"><div class="card p-3 text-center"><h6>إجمالي الإيداعات</h6><h4 class="text-primary">{{ deposits }} ج.م</h4></div></div>
-    <div class="col-md-4"><div class="card p-3 text-center"><h6>إجمالي السحوبات</h6><h4 class="text-danger">{{ withdraws }} ج.م</h4></div></div>
+    <div class="col-12">
+        <h2>📊 البنك</h2>
+    </div>
 </div>
 
-<h5>📜 آخر المعاملات</h5>
-<table class="table table-striped">
-    <thead><tr><th>التاريخ</th><th>النوع</th><th>المبلغ</th><th>الوصف</th></tr></thead>
-    <tbody>
-        {% for tx in recent_transactions %}
-        <tr>
-            <td>{{ tx.date }}</td>
-            <td><span class="badge {% if tx.type == 'deposit' %}bg-success{% else %}bg-danger{% endif %}">{{ tx.type }}</span></td>
-            <td>{{ tx.amount }}</td>
-            <td>{{ tx.description }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!-- ملخص -->
+<div class="row mb-4">
+    <div class="col-md-4 mb-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💰 إجمالي رصيد الحسابات</h5>
+                <h3>{{ total_balance }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-warning text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💳 المتبقي على القروض</h5>
+                <h3>{{ total_loan_remaining }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">🏦 عدد الحسابات</h5>
+                <h3>{{ accounts|length }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
 
-<!-- Modal إضافة معاملة -->
-<div class="modal fade" id="addTransactionModal">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('add_bank_transaction') }}">
-                <div class="modal-header"><h5 class="modal-title">إضافة معاملة</h5></div>
-                <div class="modal-body">
-                    <div class="mb-3"><label>التاريخ</label><input type="date" name="date" class="form-control" value="{{ date.today().isoformat() }}" required></div>
-                    <div class="mb-3"><label>النوع</label><select name="type" class="form-select"><option value="deposit">إيداع</option><option value="withdraw">سحب</option></select></div>
-                    <div class="mb-3"><label>المبلغ</label><input type="number" name="amount" class="form-control" step="0.01" required></div>
-                    <div class="mb-3"><label>الوصف</label><textarea name="description" class="form-control" rows="2"></textarea></div>
+<!-- إضافة معاملة بنكية -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">➕ إضافة معاملة بنكية</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_bank_transaction') }}">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">التاريخ</label>
+                    <input type="date" class="form-control" name="date" required value="{{ date }}">
                 </div>
-                <div class="modal-footer"><button type="submit" class="btn btn-primary">حفظ</button></div>
-            </form>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">الحساب البنكي</label>
+                    <select class="form-select" name="account_id" required>
+                        <option value="">اختر الحساب...</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}">{{ account.bank_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">النوع</label>
+                    <select class="form-select" name="type" required>
+                        <option value="deposit">إيداع</option>
+                        <option value="withdraw">سحب</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">المبلغ</label>
+                    <input type="number" step="0.01" class="form-control" name="amount" required>
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">إضافة</button>
+                </div>
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">الوصف</label>
+                    <input type="text" class="form-control" name="description">
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- جدول المعاملات البنكية -->
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">📋 المعاملات البنكية (مرتبة من الأقدم للأحدث)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>الحساب</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
+                        <th>الوصف</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in recent_transactions %}
+                    <tr>
+                        <td>{{ txn.date }}</td>
+                        <td>{{ txn.account.bank_name if txn.account else '-' }}</td>
+                        <td>
+                            {% if txn.type == 'deposit' %}
+                                <span class="badge bg-success">إيداع</span>
+                            {% elif txn.type == 'withdraw' %}
+                                <span class="badge bg-danger">سحب</span>
+                            {% else %}
+                                <span class="badge bg-info">{{ txn.type }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ txn.amount }}</td>
+                        <td>{{ txn.description or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
