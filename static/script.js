@@ -1,7 +1,14 @@
 // ==================== Adam Cargo - Main Script ====================
 
-// تفعيل التلميحات (Tooltips) في Bootstrap
+// منع أي حركة أو تأخير
 document.addEventListener('DOMContentLoaded', function() {
+    // تثبيت كل العناصر
+    var allElements = document.querySelectorAll('*');
+    allElements.forEach(function(el) {
+        el.style.transition = 'none';
+        el.style.animation = 'none';
+    });
+
     // تفعيل كل التلميحات
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
@@ -37,7 +44,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // تفعيل البحث في الجداول (لو فيه input للبحث)
+    // تفعيل البحث في الجداول
     var searchInput = document.getElementById('tableSearch');
     if (searchInput) {
         searchInput.addEventListener('keyup', function() {
@@ -70,7 +77,6 @@ document.addEventListener('DOMContentLoaded', function() {
             var dp = parseFloat(dpInput.value) || 0;
             var net = nau - sol - exp - dp;
             
-            // عرض الصافي في مكان مخصص (لو موجود)
             var netDisplay = document.getElementById('netDisplay');
             if (netDisplay) {
                 netDisplay.textContent = net.toFixed(2);
@@ -82,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // تفعيل القوائم المنسدلة في الجداول
+    // تفعيل القوائم المنسدلة
     var dropdowns = document.querySelectorAll('.dropdown-toggle');
     dropdowns.forEach(function(dropdown) {
         dropdown.addEventListener('click', function(e) {
@@ -96,7 +102,7 @@ function printTable() {
     window.print();
 }
 
-// دالة لتصدير الجدول كـ Excel (بدون استخدام مكتبات خارجية)
+// دالة لتصدير الجدول كـ Excel
 function exportTableToExcel(tableId, fileName) {
     var table = document.getElementById(tableId);
     if (!table) return;
@@ -136,7 +142,7 @@ function validateForm(formId) {
     return isValid;
 }
 
-// دالة لتحويل التاريخ من صيغة YYYY-MM-DD إلى صيغة عربية
+// دالة لتحويل التاريخ إلى صيغة عربية
 function formatDateArabic(dateString) {
     if (!dateString) return '-';
     var parts = dateString.split('-');
