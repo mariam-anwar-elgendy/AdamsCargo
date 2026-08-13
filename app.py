@@ -54,7 +54,7 @@ class User(db.Model):
     username = db.Column(db.String(100), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
     full_name = db.Column(db.String(200))
-    role = db.Column(db.String(20), default='user')  # 'root', 'admin', 'user'
+    role = db.Column(db.String(20), default='user')
     active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
@@ -140,7 +140,7 @@ class BankTransaction(db.Model):
     __tablename__ = 'bank_transactions'
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False, default=date.today)
-    type = db.Column(db.String(20), nullable=False)  # 'deposit', 'withdraw', 'loan'
+    type = db.Column(db.String(20), nullable=False)
     amount = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text)
     account_id = db.Column(db.Integer, db.ForeignKey('bank_accounts.id'), nullable=True)
@@ -177,7 +177,6 @@ class LoanPayment(db.Model):
 
     loan = db.relationship('BankLoan', backref='payments')
 
-# Land Loan (Only for Root User) - مستقل تمامًا عن البنك
 class LandLoan(db.Model):
     __tablename__ = 'land_loans'
     id = db.Column(db.Integer, primary_key=True)
@@ -187,14 +186,13 @@ class LandLoan(db.Model):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
-# Financial Transactions (General) - ممكن تكون مرتبطة بحساب بنكي أو لأ
 class FinancialTransaction(db.Model):
     __tablename__ = 'financial_transactions'
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.Date, nullable=False, default=date.today)
     person_name = db.Column(db.String(100), nullable=False)
     amount = db.Column(db.Float, nullable=False)
-    type = db.Column(db.String(10), nullable=False)  # 'given' or 'received'
+    type = db.Column(db.String(10), nullable=False)
     description = db.Column(db.Text)
     bank_account_id = db.Column(db.Integer, db.ForeignKey('bank_accounts.id'), nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
@@ -355,18 +353,14 @@ def dashboard():
     today_net = sum(t.net_profit for t in today_tr)
     today_nau = sum(t.nauloon for t in today_tr)
     
-    # حساب أرصدة الحسابات البنكية
     bank_accounts = BankAccount.query.all()
     total_bank_balance = sum(a.current_balance for a in bank_accounts)
     
-    # القروض النشطة
     loans = BankLoan.query.filter(BankLoan.remaining > 0).all()
     loan_rem = sum(l.remaining for l in loans)
     
-    # آخر الرحلات (الأحدث أولاً في الداشبورد)
     recent = Trip.query.order_by(Trip.date.desc()).limit(10).all()
     
-    # العملاء اللي عليهم فلوس
     pending = []
     for c in Customer.query.all():
         tn = db.session.query(db.func.sum(Trip.nauloon)).filter(Trip.customer_id==c.id).scalar() or 0
@@ -374,7 +368,6 @@ def dashboard():
         r = tn - tp
         if r > 0: pending.append({'customer':c,'remaining':r})
     
-    # الأقساط القادمة
     upcoming = Installment.query.filter(Installment.paid==False, Installment.due_date>=date.today()).order_by(Installment.due_date.asc()).limit(5).all()
     
     return render_template('dashboard.html', total_trips=tt, total_customers=tcust, total_cars=tcar,
@@ -433,7 +426,7 @@ def reset_user_password(uid):
     flash(f'تم تغيير كلمة المرور لـ {u.full_name}','success')
     return redirect(url_for('users'))
 
-# ==================== LAND LOAN (ROOT ONLY) - مستقلة تمامًا ====================
+# ==================== LAND LOAN (ROOT ONLY) ====================
 @app.route('/land')
 @root_required
 def land_loan():
@@ -468,11 +461,10 @@ def pay_land():
     amt = float(request.form.get('amount', 0))
     land.total_paid += amt
     db.session.commit()
-    # ملاحظة: لا نضيف أي شيء في BankTransaction لأن الأرض مستقلة تمامًا
     flash(f'تم دفع {amt} للأرض (مستقل عن البنك)','success')
     return redirect(url_for('land_loan'))
 
-# ==================== FINANCIAL TRANSACTIONS (ADMIN & ROOT) ====================
+# ==================== FINANCIAL TRANSACTIONS ====================
 @app.route('/transactions')
 @admin_required
 def financial_transactions():
@@ -488,9 +480,8 @@ def add_transaction():
     try:
         bank_account_id = request.form.get('bank_account_id') or None
         amount = float(request.form['amount'])
-        txn_type = request.form['type']  # 'given' or 'received'
+        txn_type = request.form['type']
         
-        # إنشاء المعاملة المالية
         txn = FinancialTransaction(
             date=datetime.strptime(request.form['date'], '%Y-%m-%d').date(),
             person_name=request.form['person_name'],
@@ -503,12 +494,10 @@ def add_transaction():
         db.session.add(txn)
         db.session.flush()
         
-        # إذا كانت مرتبطة بحساب بنكي، نضيف عملية بنكية
         if bank_account_id:
             account = BankAccount.query.get(bank_account_id)
             if account:
                 if txn_type == 'received':
-                    # استلام فلوس = إيداع في البنك
                     account.current_balance += amount
                     db.session.add(BankTransaction(
                         date=txn.date,
@@ -519,7 +508,6 @@ def add_transaction():
                         created_by=session['user_id']
                     ))
                 elif txn_type == 'given':
-                    # إعطاء فلوس = سحب من البنك
                     account.current_balance -= amount
                     db.session.add(BankTransaction(
                         date=txn.date,
@@ -617,7 +605,6 @@ def add_trip():
 @app.route('/trips')
 @login_required
 def trips_list():
-    # الترتيب من الأقدم للأحدث
     trips = Trip.query.order_by(Trip.date.asc()).all()
     return render_template('trips.html', trips=trips)
 
@@ -628,7 +615,6 @@ def edit_trip(tid):
     
     if request.method == 'POST':
         try:
-            # تحديث بيانات الرحلة
             trip.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
             trip.driver_name = request.form['driver_name']
             trip.from_location = request.form.get('from_location', '')
@@ -640,7 +626,6 @@ def edit_trip(tid):
             trip.net_profit = trip.nauloon - trip.solar - trip.expenses - trip.driver_pay
             trip.notes = request.form.get('notes', '')
             
-            # تحديث العربية
             pn = request.form.get('plate_number', '').strip()
             if pn:
                 car = Car.query.filter_by(plate_number=pn).first()
@@ -650,7 +635,6 @@ def edit_trip(tid):
                     db.session.flush()
                 trip.car_id = car.id
             
-            # تحديث العميل
             cn = request.form.get('customer_name', '').strip()
             if cn:
                 cust = Customer.query.filter_by(name=cn).first()
@@ -814,7 +798,6 @@ def add_installment():
     db.session.add(inst)
     db.session.flush()
     
-    # إضافة عملية سحب من البنك تلقائيًا
     account = BankAccount.query.get(account_id)
     if account:
         account.current_balance -= amt
@@ -841,7 +824,6 @@ def pay_installment(iid):
     if car:
         car.remaining_bank -= inst.amount
     
-    # إضافة عملية سحب من البنك عند دفع القسط
     account_id = request.form.get('account_id')
     if account_id:
         account = BankAccount.query.get(account_id)
@@ -871,7 +853,7 @@ def delete_car(cid):
     flash('تم الحذف','success')
     return redirect(url_for('cars'))
 
-# ==================== BANK ACCOUNTS (ADMIN & ROOT) ====================
+# ==================== BANK ACCOUNTS ====================
 @app.route('/bank/accounts')
 @admin_required
 def bank_accounts():
@@ -915,7 +897,6 @@ def edit_bank_account(aid):
 def delete_bank_account(aid):
     account = BankAccount.query.get_or_404(aid)
     
-    # التحقق من عدم وجود معاملات مرتبطة
     if account.transactions:
         flash('لا يمكن حذف الحساب لوجود معاملات مرتبطة به','danger')
         return redirect(url_for('bank_accounts'))
@@ -925,7 +906,7 @@ def delete_bank_account(aid):
     flash('تم حذف الحساب','success')
     return redirect(url_for('bank_accounts'))
 
-# ==================== BANK (ADMIN) ====================
+# ==================== BANK ====================
 @app.route('/bank')
 @admin_required
 def bank():
@@ -935,7 +916,6 @@ def bank():
     loans = BankLoan.query.filter(BankLoan.remaining > 0).all()
     loan_rem = sum(l.remaining for l in loans)
     
-    # المعاملات البنكية مرتبة من الأقدم للأحدث
     recent_transactions = BankTransaction.query.order_by(BankTransaction.date.asc()).all()
     
     return render_template('bank.html', 
@@ -962,7 +942,6 @@ def add_bank_transaction():
     txn_type = request.form['type']
     amount = float(request.form['amount'] or 0)
     
-    # تحديث رصيد الحساب
     if txn_type == 'deposit':
         account.current_balance += amount
     elif txn_type == 'withdraw':
@@ -1009,7 +988,6 @@ def add_bank_loan():
     db.session.add(loan)
     db.session.flush()
     
-    # إضافة القرض كإيداع في الحساب البنكي
     account = BankAccount.query.get(account_id)
     if account:
         account.current_balance += amt
@@ -1048,7 +1026,6 @@ def pay_loan_installment(lid):
     loan.total_paid += amt
     loan.remaining = loan.total_amount - loan.total_paid
     
-    # سحب من الحساب البنكي
     account = BankAccount.query.get(account_id)
     if account:
         account.current_balance -= amt
@@ -1093,14 +1070,12 @@ def monthly_report():
     
     tr = Trip.query.filter(Trip.date >= start_date, Trip.date < end_date).order_by(Trip.date.asc()).all()
     
-    # إحصائيات الشهر
     total_nauloon = sum(t.nauloon for t in tr)
     total_solar = sum(t.solar for t in tr)
     total_expenses = sum(t.expenses for t in tr)
     total_driver_pay = sum(t.driver_pay for t in tr)
     total_net = sum(t.net_profit for t in tr)
     
-    # تجميع حسب الأيام
     daily_summary = {}
     for t in tr:
         d = t.date
@@ -1113,7 +1088,6 @@ def monthly_report():
         daily_summary[d]['driver_pay'] += t.driver_pay
         daily_summary[d]['net'] += t.net_profit
     
-    # ترتيب الأيام
     sorted_daily = dict(sorted(daily_summary.items()))
     
     return render_template('monthly_report.html', 
@@ -1240,7 +1214,9 @@ def init_db():
             db.session.commit()
             print("✅ تمت إضافة حسابين بنكيين افتراضيين")
 
+# تشغيل init_db تلقائيًا عند بدء التطبيق
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     print("✅ Scheduler running")
