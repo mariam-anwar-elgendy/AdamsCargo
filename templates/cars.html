@@ -21,8 +21,10 @@
                     <tr>
                         <th>#</th>
                         <th>رقم اللوحة</th>
+                        {% if session.role in ['admin', 'root'] %}
                         <th>قسط البنك</th>
                         <th>المتبقي على البنك</th>
+                        {% endif %}
                         <th>ملاحظات</th>
                         <th>إجراءات</th>
                     </tr>
@@ -32,8 +34,10 @@
                     <tr>
                         <td>{{ loop.index }}</td>
                         <td><a href="{{ url_for('car_report', cid=car.id) }}">{{ car.plate_number }}</a></td>
+                        {% if session.role in ['admin', 'root'] %}
                         <td>{{ car.bank_installment }}</td>
                         <td>{{ car.remaining_bank }}</td>
+                        {% endif %}
                         <td>{{ car.notes or '-' }}</td>
                         <td>
                             <a href="{{ url_for('car_report', cid=car.id) }}" class="btn btn-sm btn-info">📊 تقرير</a>
