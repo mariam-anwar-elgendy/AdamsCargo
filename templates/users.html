@@ -1,42 +1,111 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>👥 إدارة المستخدمين</h2>
-    <a href="{{ url_for('add_user') }}" class="btn btn-primary">➕ إضافة مستخدم</a>
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>👥 إدارة المستخدمين</h2>
+        <a href="{{ url_for('add_user') }}" class="btn btn-primary">➕ إضافة مستخدم</a>
+    </div>
 </div>
 
-<table class="table table-striped">
-    <thead><tr><th>#</th><th>اسم المستخدم</th><th>الاسم الكامل</th><th>الصلاحية</th><th>الحالة</th><th>إجراءات</th></tr></thead>
-    <tbody>
-        {% for u in users %}
-        <tr>
-            <td>{{ u.id }}</td>
-            <td>{{ u.username }}</td>
-            <td>{{ u.full_name }}</td>
-            <td><span class="badge {% if u.role == 'admin' %}bg-danger{% else %}bg-info{% endif %}">{{ u.role }}</span></td>
-            <td>{% if u.active %}✅{% else %}❌{% endif %}</td>
-            <td>
-                <button class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#resetPassModal{{ u.id }}">🔑 تغيير كلمة المرور</button>
-                {% if u.role != 'admin' or users|length > 1 %}
-                <button class="btn btn-sm btn-danger" onclick="if(confirm('هل أنت متأكد؟')) fetch('/api/users/{{ u.id }}/delete', {method:'POST'}).then(()=>location.reload())">🗑️ حذف</button>
-                {% endif %}
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>الاسم الكامل</th>
+                        <th>اسم المستخدم</th>
+                        <th>الدور</th>
+                        <th>الحالة</th>
+                        <th>تاريخ الإنشاء</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ user.full_name }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>
+                            {% if user.role == 'root' %}
+                                <span class="badge bg-warning text-dark">Root</span>
+                            {% elif user.role == 'admin' %}
+                                <span class="badge bg-primary">Admin</span>
+                            {% else %}
+                                <span class="badge bg-secondary">User</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if user.active %}
+                                <span class="badge bg-success">نشط</span>
+                            {% else %}
+                                <span class="badge bg-danger">موقوف</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.created_at.strftime('%Y-%m-%d') if user.created_at else '-' }}</td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#resetModal{{ user.id }}">
+                                🔑 تغيير كلمة المرور
+                            </button>
+                            {% if user.role != 'root' or session.role == 'root' %}
+                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ user.id }}">
+                                🗑️ حذف
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
 
-                <div class="modal fade" id="resetPassModal{{ u.id }}">
-                    <div class="modal-dialog"><div class="modal-content">
-                        <form method="POST" action="{{ url_for('reset_user_password', uid=u.id) }}">
-                            <div class="modal-header"><h5>تغيير كلمة المرور لـ {{ u.full_name }}</h5></div>
-                            <div class="modal-body">
-                                <label>كلمة المرور الجديدة</label>
-                                <input type="text" name="new_password" class="form-control" required>
+                    <!-- Modal تغيير كلمة المرور -->
+                    <div class="modal fade" id="resetModal{{ user.id }}" tabindex="-1" aria-labelledby="resetModalLabel{{ user.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="resetModalLabel{{ user.id }}">تغيير كلمة المرور - {{ user.full_name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <form action="{{ url_for('reset_user_password', uid=user.id) }}" method="POST">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">كلمة المرور الجديدة</label>
+                                            <input type="password" class="form-control" name="new_password" required>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-warning">تغيير</button>
+                                    </div>
+                                </form>
                             </div>
-                            <div class="modal-footer"><button type="submit" class="btn btn-warning">تغيير</button></div>
-                        </form>
-                    </div></div>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                        </div>
+                    </div>
+
+                    <!-- Modal حذف المستخدم -->
+                    <div class="modal fade" id="deleteModal{{ user.id }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ user.id }}" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="deleteModalLabel{{ user.id }}">حذف المستخدم - {{ user.full_name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>هل أنت متأكد من حذف هذا المستخدم؟</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                    <form action="{{ url_for('delete_user', uid=user.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-danger">حذف</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
