@@ -1,98 +1,97 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-lg border-0">
-            <div class="card-header bg-success text-white">
-                <h4 class="mb-0">➕ إضافة رحلة جديدة</h4>
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>➕ إضافة رحلة جديدة</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_trip') }}">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">التاريخ</label>
+                    <input type="date" class="form-control" name="date" required value="{{ today }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">رقم اللوحة</label>
+                    <input type="text" class="form-control" name="plate_number" list="carsList" placeholder="اختر أو اكتب رقم اللوحة">
+                    <datalist id="carsList">
+                        {% for car in cars %}
+                        <option value="{{ car.plate_number }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">اسم السائق</label>
+                    <input type="text" class="form-control" name="driver_name" required>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="POST" action="{{ url_for('add_trip') }}">
-                    <div class="row g-3">
-                        <div class="col-md-4">
-                            <label class="form-label">📅 التاريخ</label>
-                            <input type="date" name="date" class="form-control" value="{{ today }}" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">🚗 رقم اللوحة</label>
-                            <input type="text" name="plate_number" class="form-control" placeholder="مثال: 1234" list="cars-list">
-                            <datalist id="cars-list">
-                                {% for car in cars %}
-                                <option value="{{ car.plate_number }}">
-                                {% endfor %}
-                            </datalist>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">👨‍✈️ اسم السائق</label>
-                            <input type="text" name="driver_name" class="form-control" required>
-                        </div>
-                    </div>
 
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-6">
-                            <label class="form-label">👤 اسم العميل</label>
-                            <input type="text" name="customer_name" class="form-control" list="customers-list">
-                            <datalist id="customers-list">
-                                {% for customer in customers %}
-                                <option value="{{ customer.name }}">
-                                {% endfor %}
-                            </datalist>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">📞 تليفون العميل</label>
-                            <input type="text" name="customer_phone" class="form-control">
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-6">
-                            <label class="form-label">📍 من</label>
-                            <input type="text" name="from_location" class="form-control">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label">📍 إلى</label>
-                            <input type="text" name="to_location" class="form-control">
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-4">
-                            <label class="form-label">💰 النولون</label>
-                            <input type="number" name="nauloon" class="form-control" step="0.01" value="0" required>
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">⛽ السولار</label>
-                            <input type="number" name="solar" class="form-control" step="0.01" value="0">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">💸 المصاريف</label>
-                            <input type="number" name="expenses" class="form-control" step="0.01" value="0">
-                        </div>
-                    </div>
-
-                    <div class="row g-3 mt-2">
-                        <div class="col-md-4">
-                            <label class="form-label">👨‍✈️ أجرة السائق</label>
-                            <input type="number" name="driver_pay" class="form-control" step="0.01" value="0">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">💵 دفعة مقدمة</label>
-                            <input type="number" name="paid_now" class="form-control" step="0.01" value="0">
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label">📝 ملاحظات</label>
-                            <textarea name="notes" class="form-control" rows="3"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="mt-4 text-center">
-                        <button type="submit" class="btn btn-success btn-lg px-5">💾 حفظ الرحلة</button>
-                        <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg px-5">إلغاء</a>
-                    </div>
-                </form>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">اسم العميل</label>
+                    <input type="text" class="form-control" name="customer_name" list="customersList" placeholder="اختر أو اكتب اسم العميل">
+                    <datalist id="customersList">
+                        {% for customer in customers %}
+                        <option value="{{ customer.name }}">
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">تليفون العميل</label>
+                    <input type="text" class="form-control" name="customer_phone">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">من</label>
+                    <input type="text" class="form-control" name="from_location">
+                </div>
             </div>
-        </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">إلى</label>
+                    <input type="text" class="form-control" name="to_location">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">النولون</label>
+                    <input type="number" step="0.01" class="form-control" name="nauloon" value="0">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">السولار</label>
+                    <input type="number" step="0.01" class="form-control" name="solar" value="0">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">المصاريف</label>
+                    <input type="number" step="0.01" class="form-control" name="expenses" value="0">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">أجرة السائق</label>
+                    <input type="number" step="0.01" class="form-control" name="driver_pay" value="0">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">دفعة الآن (اختياري)</label>
+                    <input type="number" step="0.01" class="form-control" name="paid_now" value="0">
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12 mb-3">
+                    <label class="form-label">ملاحظات</label>
+                    <textarea class="form-control" name="notes" rows="3"></textarea>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary">إضافة الرحلة</button>
+                <a href="{{ url_for('trips_list') }}" class="btn btn-secondary">رجوع</a>
+            </div>
+        </form>
     </div>
 </div>
 {% endblock %}
