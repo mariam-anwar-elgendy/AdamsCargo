@@ -1,56 +1,150 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>🏦 القروض البنكية</h2>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLoanModal">➕ إضافة قرض</button>
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>💳 القروض البنكية</h2>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLoanModal">
+            ➕ إضافة قرض جديد
+        </button>
+    </div>
 </div>
 
-<table class="table table-striped">
-    <thead><tr><th>تاريخ البدء</th><th>الوصف</th><th>إجمالي القرض</th><th>القسط الشهري</th><th>المتبقي</th><th>إجراء</th></tr></thead>
-    <tbody>
-        {% for loan in loans %}
-        <tr>
-            <td>{{ loan.start_date }}</td>
-            <td>{{ loan.description }}</td>
-            <td>{{ loan.total_amount }}</td>
-            <td>{{ loan.monthly_installment }}</td>
-            <td><span class="badge bg-danger">{{ loan.remaining }}</span></td>
-            <td>
-                <button class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payLoanModal{{ loan.id }}">سداد قسط</button>
+<!-- جدول القروض -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>تاريخ البداية</th>
+                        <th>المبلغ الإجمالي</th>
+                        <th>القسط الشهري</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th>الحساب البنكي</th>
+                        <th>الوصف</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for loan in loans %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ loan.start_date }}</td>
+                        <td>{{ loan.total_amount }}</td>
+                        <td>{{ loan.monthly_installment }}</td>
+                        <td>{{ loan.total_paid }}</td>
+                        <td>
+                            {% if loan.remaining > 0 %}
+                                <span class="badge bg-danger">{{ loan.remaining }}</span>
+                            {% else %}
+                                <span class="badge bg-success">مسدد</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ loan.account.bank_name if loan.account else '-' }}</td>
+                        <td>{{ loan.description or '-' }}</td>
+                        <td>
+                            {% if loan.remaining > 0 %}
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payModal{{ loan.id }}">
+                                💵 سداد قسط
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
 
-                <div class="modal fade" id="payLoanModal{{ loan.id }}">
-                    <div class="modal-dialog"><div class="modal-content">
-                        <form method="POST" action="{{ url_for('pay_loan_installment', lid=loan.id) }}">
-                            <div class="modal-header"><h5>سداد قسط للقرض #{{ loan.id }}</h5></div>
-                            <div class="modal-body">
-                                <div class="mb-3"><label>التاريخ</label><input type="date" name="date" class="form-control" required></div>
-                                <div class="mb-3"><label>المبلغ</label><input type="number" name="amount" class="form-control" step="0.01" required></div>
-                                <div class="mb-3"><label>ملاحظات</label><textarea name="notes" class="form-control"></textarea></div>
+                    <!-- Modal سداد قسط -->
+                    {% if loan.remaining > 0 %}
+                    <div class="modal fade" id="payModal{{ loan.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">سداد قسط - قرض #{{ loan.id }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ url_for('pay_loan_installment', lid=loan.id) }}" method="POST">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">التاريخ</label>
+                                            <input type="date" class="form-control" name="date" required value="{{ date.today() }}">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">المبلغ</label>
+                                            <input type="number" step="0.01" class="form-control" name="amount" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">الحساب البنكي</label>
+                                            <select class="form-select" name="account_id" required>
+                                                <option value="">اختر الحساب...</option>
+                                                {% for account in accounts %}
+                                                <option value="{{ account.id }}" {% if loan.account_id == account.id %}selected{% endif %}>{{ account.bank_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">ملاحظات</label>
+                                            <input type="text" class="form-control" name="notes">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-success">سداد</button>
+                                    </div>
+                                </form>
                             </div>
-                            <div class="modal-footer"><button type="submit" class="btn btn-success">تأكيد السداد</button></div>
-                        </form>
-                    </div></div>
-                </div>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 <!-- Modal إضافة قرض -->
-<div class="modal fade" id="addLoanModal">
-    <div class="modal-dialog"><div class="modal-content">
-        <form method="POST" action="{{ url_for('add_bank_loan') }}">
-            <div class="modal-header"><h5>إضافة قرض جديد</h5></div>
-            <div class="modal-body">
-                <div class="mb-3"><label>تاريخ البدء</label><input type="date" name="start_date" class="form-control" required></div>
-                <div class="mb-3"><label>إجمالي المبلغ</label><input type="number" name="total_amount" class="form-control" step="0.01" required></div>
-                <div class="mb-3"><label>القسط الشهري</label><input type="number" name="monthly_installment" class="form-control" step="0.01" required></div>
-                <div class="mb-3"><label>الوصف</label><textarea name="description" class="form-control"></textarea></div>
+<div class="modal fade" id="addLoanModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إضافة قرض بنكي جديد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-footer"><button type="submit" class="btn btn-primary">حفظ</button></div>
-        </form>
-    </div></div>
+            <form action="{{ url_for('add_bank_loan') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">تاريخ البداية</label>
+                        <input type="date" class="form-control" name="start_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">المبلغ الإجمالي</label>
+                        <input type="number" step="0.01" class="form-control" name="total_amount" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">القسط الشهري</label>
+                        <input type="number" step="0.01" class="form-control" name="monthly_installment" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الحساب البنكي</label>
+                        <select class="form-select" name="account_id" required>
+                            <option value="">اختر الحساب...</option>
+                            {% for account in accounts %}
+                            <option value="{{ account.id }}">{{ account.bank_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الوصف</label>
+                        <input type="text" class="form-control" name="description">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة القرض</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}
