@@ -1,34 +1,121 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>📅 التقرير اليومي</h2>
-    <div>
-        <input type="date" id="datePicker" value="{{ report_date }}" class="form-control d-inline-block w-auto" onchange="window.location.href='/reports/daily?date='+this.value">
-        <a href="{{ url_for('export_daily_report', rd=report_date) }}" class="btn btn-success">📥 تصدير Excel</a>
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>📅 التقرير اليومي</h2>
+        <div>
+            <a href="{{ url_for('export_daily_report', rd=report_date) }}" class="btn btn-success">📥 تصدير Excel</a>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">رجوع</a>
+        </div>
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-2"><div class="card p-3 text-center"><h6>النولون</h6><h4>{{ total_nauloon }} ج.م</h4></div></div>
-    <div class="col-2"><div class="card p-3 text-center"><h6>السولار</h6><h4>{{ total_solar }} ج.م</h4></div></div>
-    <div class="col-2"><div class="card p-3 text-center"><h6>المصاريف</h6><h4>{{ total_expenses }} ج.م</h4></div></div>
-    <div class="col-2"><div class="card p-3 text-center"><h6>أجرة السائق</h6><h4>{{ total_driver_pay }} ج.م</h4></div></div>
-    <div class="col-2"><div class="card p-3 text-center"><h6>صافي الربح</h6><h4 class="text-success">{{ total_net }} ج.م</h4></div></div>
+<!-- اختيار التاريخ -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('daily_report') }}">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">اختر التاريخ</label>
+                    <input type="date" class="form-control" name="date" value="{{ report_date }}" required>
+                </div>
+                <div class="col-md-6 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">عرض التقرير</button>
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
 
-<table class="table table-striped">
-    <thead><tr><th>العربية</th><th>السائق</th><th>العميل</th><th>النولون</th><th>الصافي</th></tr></thead>
-    <tbody>
-        {% for trip in trips %}
-        <tr>
-            <td>{{ trip.car.plate_number if trip.car else '-' }}</td>
-            <td>{{ trip.driver_name }}</td>
-            <td>{{ trip.customer.name if trip.customer else '-' }}</td>
-            <td>{{ trip.nauloon }}</td>
-            <td>{{ trip.net_profit }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!-- ملخص اليوم -->
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">📦 عدد الرحلات</h5>
+                <h3>{{ trips|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💰 إجمالي النولون</h5>
+                <h3>{{ total_nauloon }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-warning text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">⛽ السولار</h5>
+                <h3>{{ total_solar }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">📈 الصافي</h5>
+                <h3>{{ total_net }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول الرحلات -->
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">📋 رحلات يوم {{ report_date }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>العربية</th>
+                        <th>السائق</th>
+                        <th>العميل</th>
+                        <th>من</th>
+                        <th>إلى</th>
+                        <th>النولون</th>
+                        <th>السولار</th>
+                        <th>المصاريف</th>
+                        <th>أجرة السائق</th>
+                        <th>الصافي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trip in trips %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ trip.car.plate_number if trip.car else '-' }}</td>
+                        <td>{{ trip.driver_name }}</td>
+                        <td>{{ trip.customer.name if trip.customer else '-' }}</td>
+                        <td>{{ trip.from_location or '-' }}</td>
+                        <td>{{ trip.to_location or '-' }}</td>
+                        <td>{{ trip.nauloon }}</td>
+                        <td>{{ trip.solar }}</td>
+                        <td>{{ trip.expenses }}</td>
+                        <td>{{ trip.driver_pay }}</td>
+                        <td>{{ trip.net_profit }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="6"><strong>الإجمالي</strong></td>
+                        <td><strong>{{ total_nauloon }}</strong></td>
+                        <td><strong>{{ total_solar }}</strong></td>
+                        <td><strong>{{ total_expenses }}</strong></td>
+                        <td><strong>{{ total_driver_pay }}</strong></td>
+                        <td><strong>{{ total_net }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
