@@ -1,39 +1,83 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>👤 العملاء والمستحقات</h2>
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>👤 العملاء</h2>
+    </div>
 </div>
 
-<div class="row">
-    {% for item in customers_summary %}
-    <div class="col-md-6 col-lg-4 mb-3">
-        <div class="card shadow-sm h-100">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start">
-                    <h5 class="card-title">{{ item.customer.name }}</h5>
-                    <a href="{{ url_for('customer_report', cid=item.customer.id) }}" class="btn btn-sm btn-outline-primary">تقرير</a>
-                </div>
-                <p class="text-muted small mb-2">📞 {{ item.customer.phone or 'لا يوجد' }}</p>
-                <div class="row mt-3">
-                    <div class="col-6 text-center border-end">
-                        <div class="text-muted small">إجمالي النولون</div>
-                        <div class="fw-bold">{{ item.total_nauloon }} ج.م</div>
-                    </div>
-                    <div class="col-6 text-center">
-                        <div class="text-muted small">المتبقي</div>
-                        <div class="fw-bold {% if item.remaining > 0 %}text-danger{% else %}text-success{% endif %}">
-                            {{ item.remaining }} ج.م
+<!-- جدول العملاء -->
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">📋 جميع العملاء</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>اسم العميل</th>
+                        <th>التليفون</th>
+                        <th>إجمالي النولون</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in customers_summary %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><a href="{{ url_for('customer_report', cid=item.customer.id) }}">{{ item.customer.name }}</a></td>
+                        <td>{{ item.customer.phone or '-' }}</td>
+                        <td>{{ item.total_nauloon }}</td>
+                        <td>{{ item.total_paid }}</td>
+                        <td>
+                            {% if item.remaining > 0 %}
+                                <span class="badge bg-danger">{{ item.remaining }}</span>
+                            {% else %}
+                                <span class="badge bg-success">مسدد</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('customer_report', cid=item.customer.id) }}" class="btn btn-sm btn-info">📊 تقرير</a>
+                            {% if session.role in ['admin', 'root'] %}
+                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ item.customer.id }}">
+                                🗑️ حذف
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal حذف -->
+                    {% if session.role in ['admin', 'root'] %}
+                    <div class="modal fade" id="deleteModal{{ item.customer.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">حذف العميل - {{ item.customer.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>هل أنت متأكد من حذف هذا العميل؟</p>
+                                    <p class="text-danger">⚠️ سيتم حذف كل الرحلات والدفعات المرتبطة به!</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                    <form action="{{ url_for('delete_customer', cid=item.customer.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-danger">حذف</button>
+                                    </form>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-    {% else %}
-    <div class="col-12 text-center text-muted py-5">
-        <h4>لا يوجد عملاء حتى الآن.</h4>
-    </div>
-    {% endfor %}
 </div>
 {% endblock %}
