@@ -34,6 +34,7 @@
             </div>
         </div>
     </div>
+    {% if session.role in ['admin', 'root'] %}
     <div class="col-md-3 col-sm-6 mb-3">
         <div class="card {% if car.remaining_bank > 0 %}bg-danger{% else %}bg-success{% endif %} text-white shadow-sm">
             <div class="card-body text-center">
@@ -42,6 +43,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 
 <!-- السائقين -->
@@ -75,17 +77,16 @@
     </div>
 </div>
 
-<!-- الأقساط -->
+<!-- الأقساط - تظهر فقط للـ admin والـ root -->
+{% if session.role in ['admin', 'root'] %}
 <div class="card shadow-sm mb-4">
     <div class="card-header bg-warning text-white">
         <h5 class="mb-0">💳 أقساط العربية</h5>
     </div>
     <div class="card-body">
-        {% if session.role in ['admin', 'root'] %}
         <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addInstallmentModal">
             ➕ إضافة قسط
         </button>
-        {% endif %}
         
         <div class="table-responsive">
             <table class="table table-hover">
@@ -112,7 +113,7 @@
                         </td>
                         <td>{{ inst.payment_date or '-' }}</td>
                         <td>
-                            {% if not inst.paid and session.role in ['admin', 'root'] %}
+                            {% if not inst.paid %}
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payInstallmentModal{{ inst.id }}">
                                 💵 دفع
                             </button>
@@ -121,7 +122,7 @@
                     </tr>
 
                     <!-- Modal دفع قسط -->
-                    {% if not inst.paid and session.role in ['admin', 'root'] %}
+                    {% if not inst.paid %}
                     <div class="modal fade" id="payInstallmentModal{{ inst.id }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
@@ -157,6 +158,45 @@
         </div>
     </div>
 </div>
+
+<!-- Modal إضافة قسط -->
+<div class="modal fade" id="addInstallmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إضافة قسط - {{ car.plate_number }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_installment') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="car_id" value="{{ car.id }}">
+                    <div class="mb-3">
+                        <label class="form-label">تاريخ الاستحقاق</label>
+                        <input type="date" class="form-control" name="due_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">المبلغ</label>
+                        <input type="number" step="0.01" class="form-control" name="amount" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الحساب البنكي</label>
+                        <select class="form-select" name="account_id" required>
+                            <option value="">اختر الحساب...</option>
+                            {% for account in bank_accounts %}
+                            <option value="{{ account.id }}">{{ account.bank_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة القسط</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- الرحلات -->
 <div class="card shadow-sm">
@@ -212,44 +252,4 @@
         </div>
     </div>
 </div>
-
-<!-- Modal إضافة قسط -->
-{% if session.role in ['admin', 'root'] %}
-<div class="modal fade" id="addInstallmentModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">إضافة قسط - {{ car.plate_number }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('add_installment') }}" method="POST">
-                <div class="modal-body">
-                    <input type="hidden" name="car_id" value="{{ car.id }}">
-                    <div class="mb-3">
-                        <label class="form-label">تاريخ الاستحقاق</label>
-                        <input type="date" class="form-control" name="due_date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">المبلغ</label>
-                        <input type="number" step="0.01" class="form-control" name="amount" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">الحساب البنكي</label>
-                        <select class="form-select" name="account_id" required>
-                            <option value="">اختر الحساب...</option>
-                            {% for account in bank_accounts %}
-                            <option value="{{ account.id }}">{{ account.bank_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">إضافة القسط</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
 {% endblock %}
