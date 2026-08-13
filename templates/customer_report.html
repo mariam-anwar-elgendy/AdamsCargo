@@ -1,53 +1,150 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>📊 تقرير العميل: {{ customer.name }}</h2>
-    <a href="{{ url_for('customers') }}" class="btn btn-secondary">رجوع</a>
-</div>
-
 <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card bg-light p-3 text-center">
-            <h6>إجمالي النولون</h6>
-            <h4 class="text-primary">{{ total_nauloon }} ج.م</h4>
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>📊 تقرير العميل: {{ customer.name }}</h2>
+        <a href="{{ url_for('customers') }}" class="btn btn-secondary">رجوع</a>
+    </div>
+</div>
+
+<!-- ملخص العميل -->
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">📞 التليفون</h5>
+                <h4>{{ customer.phone or '-' }}</h4>
+            </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-light p-3 text-center">
-            <h6>المدفوع</h6>
-            <h4 class="text-success">{{ total_paid }} ج.م</h4>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💰 إجمالي النولون</h5>
+                <h4>{{ total_nauloon }}</h4>
+            </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card bg-light p-3 text-center">
-            <h6>المتبقي</h6>
-            <h4 class="text-danger">{{ remaining }} ج.م</h4>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">✅ المدفوع</h5>
+                <h4>{{ total_paid }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card {% if remaining > 0 %}bg-danger{% else %}bg-success{% endif %} text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">⏳ المتبقي</h5>
+                <h4>{{ remaining }}</h4>
+            </div>
         </div>
     </div>
 </div>
 
-<h5 class="mt-4">📋 الرحلات السابقة</h5>
-<table class="table table-striped">
-    <thead>
-        <tr><th>التاريخ</th><th>من</th><th>إلى</th><th>النولون</th></tr>
-    </thead>
-    <tbody>
-        {% for trip in trips %}
-        <tr><td>{{ trip.date }}</td><td>{{ trip.from_location }}</td><td>{{ trip.to_location }}</td><td>{{ trip.nauloon }}</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!-- إضافة دفعة -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">💵 إضافة دفعة</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_payment') }}">
+            <input type="hidden" name="customer_id" value="{{ customer.id }}">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">التاريخ</label>
+                    <input type="date" class="form-control" name="date" required value="{{ date.today() }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">المبلغ</label>
+                    <input type="number" step="0.01" class="form-control" name="amount" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">الرحلة (اختياري)</label>
+                    <select class="form-select" name="trip_id">
+                        <option value="">بدون رحلة</option>
+                        {% for trip in trips %}
+                        <option value="{{ trip.id }}">{{ trip.date }} - {{ trip.from_location }} إلى {{ trip.to_location }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">ملاحظات</label>
+                    <input type="text" class="form-control" name="notes">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success">إضافة الدفعة</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
-<h5 class="mt-4">💵 الدفعات السابقة</h5>
-<table class="table table-striped">
-    <thead>
-        <tr><th>التاريخ</th><th>المبلغ</th><th>ملاحظات</th></tr>
-    </thead>
-    <tbody>
-        {% for pay in payments %}
-        <tr><td>{{ pay.date }}</td><td>{{ pay.amount }}</td><td>{{ pay.notes }}</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!-- الرحلات -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">📦 رحلات العميل (مرتبة من الأقدم للأحدث)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>العربية</th>
+                        <th>السائق</th>
+                        <th>من</th>
+                        <th>إلى</th>
+                        <th>النولون</th>
+                        <th>الصافي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trip in trips %}
+                    <tr>
+                        <td>{{ trip.date }}</td>
+                        <td>{{ trip.car.plate_number if trip.car else '-' }}</td>
+                        <td>{{ trip.driver_name }}</td>
+                        <td>{{ trip.from_location or '-' }}</td>
+                        <td>{{ trip.to_location or '-' }}</td>
+                        <td>{{ trip.nauloon }}</td>
+                        <td>{{ trip.net_profit }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- الدفعات -->
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">💵 دفعات العميل (مرتبة من الأقدم للأحدث)</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>المبلغ</th>
+                        <th>ملاحظات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ payment.date }}</td>
+                        <td>{{ payment.amount }}</td>
+                        <td>{{ payment.notes or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
