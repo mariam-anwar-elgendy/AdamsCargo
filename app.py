@@ -202,7 +202,8 @@ class FinancialTransaction(db.Model):
 
     creator = db.relationship('User', backref='financial_transactions')
     bank_account = db.relationship('BankAccount', backref='financial_transactions')
-  # ==================== DECORATORS ====================
+
+# ==================== DECORATORS ====================
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -336,6 +337,12 @@ def logout():
     flash('تم الخروج','info')
     return redirect(url_for('login'))
 
+@app.route('/index')
+def index():
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+    return redirect(url_for('login'))
+
 # ==================== DASHBOARD ====================
 @app.route('/')
 @app.route('/dashboard')
@@ -425,7 +432,8 @@ def reset_user_password(uid):
     db.session.commit()
     flash(f'تم تغيير كلمة المرور لـ {u.full_name}','success')
     return redirect(url_for('users'))
-  # ==================== LAND LOAN (ROOT ONLY) - مستقلة تمامًا ====================
+
+# ==================== LAND LOAN (ROOT ONLY) - مستقلة تمامًا ====================
 @app.route('/land')
 @root_required
 def land_loan():
@@ -613,6 +621,56 @@ def trips_list():
     trips = Trip.query.order_by(Trip.date.asc()).all()
     return render_template('trips.html', trips=trips)
 
+@app.route('/trips/edit/<int:tid>', methods=['GET', 'POST'])
+@admin_required
+def edit_trip(tid):
+    trip = Trip.query.get_or_404(tid)
+    
+    if request.method == 'POST':
+        try:
+            # تحديث بيانات الرحلة
+            trip.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
+            trip.driver_name = request.form['driver_name']
+            trip.from_location = request.form.get('from_location', '')
+            trip.to_location = request.form.get('to_location', '')
+            trip.nauloon = float(request.form.get('nauloon', 0) or 0)
+            trip.solar = float(request.form.get('solar', 0) or 0)
+            trip.expenses = float(request.form.get('expenses', 0) or 0)
+            trip.driver_pay = float(request.form.get('driver_pay', 0) or 0)
+            trip.net_profit = trip.nauloon - trip.solar - trip.expenses - trip.driver_pay
+            trip.notes = request.form.get('notes', '')
+            
+            # تحديث العربية
+            pn = request.form.get('plate_number', '').strip()
+            if pn:
+                car = Car.query.filter_by(plate_number=pn).first()
+                if not car:
+                    car = Car(plate_number=pn)
+                    db.session.add(car)
+                    db.session.flush()
+                trip.car_id = car.id
+            
+            # تحديث العميل
+            cn = request.form.get('customer_name', '').strip()
+            if cn:
+                cust = Customer.query.filter_by(name=cn).first()
+                if not cust:
+                    cust = Customer(name=cn, phone=request.form.get('customer_phone', ''))
+                    db.session.add(cust)
+                    db.session.flush()
+                trip.customer_id = cust.id
+            
+            db.session.commit()
+            flash('تم تحديث الرحلة بنجاح', 'success')
+            return redirect(url_for('trips_list'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'حدث خطأ: {str(e)}', 'danger')
+    
+    cars = Car.query.order_by(Car.plate_number.asc()).all()
+    customers = Customer.query.order_by(Customer.name.asc()).all()
+    return render_template('edit_trip.html', trip=trip, cars=cars, customers=customers)
+
 @app.route('/api/trips/<int:tid>/delete', methods=['POST'])
 @admin_required
 def delete_trip(tid):
@@ -622,7 +680,8 @@ def delete_trip(tid):
     db.session.commit()
     flash('تم الحذف','success')
     return redirect(url_for('trips_list'))
-  # ==================== CUSTOMERS ====================
+
+# ==================== CUSTOMERS ====================
 @app.route('/customers')
 @login_required
 def customers():
@@ -691,13 +750,22 @@ def car_report(cid):
     for t in tr:
         drivers[t.driver_name] = drivers.get(t.driver_name, 0) + 1
     insts = Installment.query.filter_by(car_id=cid).order_by(Installment.due_date.asc()).all()
+    bank_accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
     return render_template('car_report.html', car=c, trips=tr, trip_count=len(tr),
                            total_nauloon=sum(t.nauloon for t in tr),
                            total_solar=sum(t.solar for t in tr),
                            total_expenses=sum(t.expenses for t in tr),
                            total_driver_pay=sum(t.driver_pay for t in tr),
                            total_net=sum(t.net_profit for t in tr),
-                           drivers=drivers, installments=insts)
+                           drivers=drivers, installments=insts, bank_accounts=bank_accounts)
+
+@app.route('/installments')
+@admin_required
+def installments():
+    insts = Installment.query.order_by(Installment.due_date.asc()).all()
+    paid_count = sum(1 for i in insts if i.paid)
+    unpaid_count = sum(1 for i in insts if not i.paid)
+    return render_template('installments.html', installments=insts, paid_count=paid_count, unpaid_count=unpaid_count)
 
 @app.route('/api/cars/add', methods=['POST'])
 @admin_required
@@ -802,7 +870,8 @@ def delete_car(cid):
     db.session.commit()
     flash('تم الحذف','success')
     return redirect(url_for('cars'))
-  # ==================== BANK ACCOUNTS (ADMIN & ROOT) ====================
+
+# ==================== BANK ACCOUNTS (ADMIN & ROOT) ====================
 @app.route('/bank/accounts')
 @admin_required
 def bank_accounts():
@@ -996,7 +1065,8 @@ def pay_loan_installment(lid):
     db.session.commit()
     flash('تم السداد','success')
     return redirect(url_for('bank_loans'))
-  # ==================== DAILY REPORT ====================
+
+# ==================== DAILY REPORT ====================
 @app.route('/reports/daily')
 @login_required
 def daily_report():
@@ -1174,4 +1244,3 @@ if __name__ == '__main__':
     init_db()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     print("✅ Scheduler running")
-  
