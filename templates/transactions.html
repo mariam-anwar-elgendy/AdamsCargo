@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>💰 المعاملات المالية</h2>
+    </div>
+</div>
+
+<!-- ملخص -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💵 إجمالي المستلم</h5>
+                <h3>{{ total_received }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card bg-danger text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💸 إجمالي المدفوع</h5>
+                <h3>{{ total_given }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- إضافة معاملة -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">➕ إضافة معاملة مالية</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_transaction') }}">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">التاريخ</label>
+                    <input type="date" class="form-control" name="date" required value="{{ date.today() }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">اسم الشخص</label>
+                    <input type="text" class="form-control" name="person_name" required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">المبلغ</label>
+                    <input type="number" step="0.01" class="form-control" name="amount" required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">النوع</label>
+                    <select class="form-select" name="type" required>
+                        <option value="received">استلام (Received)</option>
+                        <option value="given">دفع (Given)</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">الحساب البنكي (اختياري)</label>
+                    <select class="form-select" name="bank_account_id">
+                        <option value="">بدون حساب بنكي</option>
+                        {% for account in bank_accounts %}
+                        <option value="{{ account.id }}">{{ account.bank_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">الوصف</label>
+                    <input type="text" class="form-control" name="description">
+                </div>
+                <div class="col-md-6 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">إضافة المعاملة</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- جدول المعاملات -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>التاريخ</th>
+                        <th>الشخص</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
+                        <th>الحساب البنكي</th>
+                        <th>الوصف</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in transactions %}
+                    <tr>
+                        <td>{{ txn.date }}</td>
+                        <td>{{ txn.person_name }}</td>
+                        <td>
+                            {% if txn.type == 'received' %}
+                                <span class="badge bg-success">استلام</span>
+                            {% else %}
+                                <span class="badge bg-danger">دفع</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ txn.amount }}</td>
+                        <td>{{ txn.bank_account.bank_name if txn.bank_account else '-' }}</td>
+                        <td>{{ txn.description or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
