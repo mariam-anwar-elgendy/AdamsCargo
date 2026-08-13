@@ -1,17 +1,47 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-6">
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>➕ إضافة مستخدم جديد</h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 mx-auto">
         <div class="card shadow-sm">
-            <div class="card-header bg-primary text-white"><h5 class="mb-0">➕ إضافة مستخدم جديد</h5></div>
             <div class="card-body">
-                <form method="POST">
-                    <div class="mb-3"><label>اسم المستخدم</label><input type="text" name="username" class="form-control" required></div>
-                    <div class="mb-3"><label>الاسم الكامل</label><input type="text" name="full_name" class="form-control" required></div>
-                    <div class="mb-3"><label>كلمة المرور</label><input type="text" name="password" class="form-control" required></div>
-                    <div class="mb-3"><label>الصلاحية</label><select name="role" class="form-select"><option value="user">مستخدم</option><option value="admin">مدير</option></select></div>
-                    <button type="submit" class="btn btn-primary w-100">حفظ المستخدم</button>
+                <form method="POST" action="{{ url_for('add_user') }}">
+                    <div class="mb-3">
+                        <label for="full_name" class="form-label">الاسم الكامل</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">اسم المستخدم</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">كلمة المرور</label>
+                        <input type="password" class="form-control" id="password" name="password" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role" class="form-label">الدور</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="user">User - مستخدم عادي</option>
+                            <option value="admin">Admin - مدير</option>
+                            {% if session.role == 'root' %}
+                            <option value="root">Root - مالك النظام</option>
+                            {% endif %}
+                        </select>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">إضافة المستخدم</button>
+                        <a href="{{ url_for('users') }}" class="btn btn-secondary">رجوع</a>
+                    </div>
                 </form>
             </div>
         </div>
