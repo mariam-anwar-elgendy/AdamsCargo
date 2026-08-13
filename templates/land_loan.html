@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>🏠 الأرض (خاص بالمالك فقط)</h2>
+    </div>
+</div>
+
+<!-- بيانات الأرض -->
+<div class="row mb-4">
+    <div class="col-md-6 mb-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💵 سعر الأرض</h5>
+                <h3>{{ land.land_price }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card bg-warning text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">🏦 إجمالي القرض</h5>
+                <h3>{{ land.total_loan_amount }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">✅ المدفوع</h5>
+                <h3>{{ land.total_paid }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="card bg-danger text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">⏳ المتبقي</h5>
+                <h3>{{ land.total_loan_amount - land.total_paid }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- تحديث بيانات الأرض -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">✏️ تحديث بيانات الأرض</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('update_land') }}">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">سعر الأرض</label>
+                    <input type="number" step="0.01" class="form-control" name="land_price" value="{{ land.land_price }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">إجمالي القرض</label>
+                    <input type="number" step="0.01" class="form-control" name="total_loan_amount" value="{{ land.total_loan_amount }}" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">ملاحظات</label>
+                    <input type="text" class="form-control" name="notes" value="{{ land.notes or '' }}">
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">حفظ التعديلات</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- دفع مبلغ للأرض -->
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">💵 دفع مبلغ للأرض</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('pay_land') }}">
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">المبلغ</label>
+                    <input type="number" step="0.01" class="form-control" name="amount" required>
+                </div>
+                <div class="col-md-6 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">دفع</button>
+                </div>
+            </div>
+        </form>
+        <p class="text-muted mt-2">⚠️ ملاحظة: مدفوعات الأرض مستقلة تمامًا عن البنك.</p>
+    </div>
+</div>
+{% endblock %}
