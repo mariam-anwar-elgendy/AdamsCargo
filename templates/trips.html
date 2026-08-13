@@ -1,23 +1,34 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>📦 سجل الرحلات</h2>
-    <a href="{{ url_for('add_trip') }}" class="btn btn-success">➕ إضافة رحلة</a>
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>📦 الرحلات</h2>
+        <a href="{{ url_for('add_trip') }}" class="btn btn-primary">➕ إضافة رحلة</a>
+    </div>
 </div>
 
+<!-- جدول الرحلات -->
 <div class="card shadow-sm">
-    <div class="card-body p-0">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">📋 جميع الرحلات (مرتبة من الأقدم للأحدث)</h5>
+    </div>
+    <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-light">
+            <table class="table table-hover">
+                <thead>
                     <tr>
                         <th>#</th>
                         <th>التاريخ</th>
                         <th>العربية</th>
                         <th>السائق</th>
                         <th>العميل</th>
+                        <th>من</th>
+                        <th>إلى</th>
                         <th>النولون</th>
+                        <th>السولار</th>
+                        <th>المصاريف</th>
+                        <th>أجرة السائق</th>
                         <th>الصافي</th>
                         <th>إجراءات</th>
                     </tr>
@@ -25,21 +36,49 @@
                 <tbody>
                     {% for trip in trips %}
                     <tr>
-                        <td>{{ trip.id }}</td>
+                        <td>{{ loop.index }}</td>
                         <td>{{ trip.date }}</td>
                         <td>{{ trip.car.plate_number if trip.car else '-' }}</td>
                         <td>{{ trip.driver_name }}</td>
                         <td>{{ trip.customer.name if trip.customer else '-' }}</td>
+                        <td>{{ trip.from_location or '-' }}</td>
+                        <td>{{ trip.to_location or '-' }}</td>
                         <td>{{ trip.nauloon }}</td>
-                        <td><span class="badge bg-success">{{ trip.net_profit }}</span></td>
+                        <td>{{ trip.solar }}</td>
+                        <td>{{ trip.expenses }}</td>
+                        <td>{{ trip.driver_pay }}</td>
+                        <td>{{ trip.net_profit }}</td>
                         <td>
-                            <button class="btn btn-sm btn-danger" onclick="if(confirm('هل أنت متأكد من حذف الرحلة؟')) fetch('/api/trips/{{ trip.id }}/delete', {method:'POST'}).then(()=>location.reload())">🗑️ حذف</button>
+                            {% if session.role in ['admin', 'root'] %}
+                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ trip.id }}">
+                                🗑️ حذف
+                            </button>
+                            {% endif %}
                         </td>
                     </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="8" class="text-center text-muted py-4">لا توجد رحلات مسجلة.</td>
-                    </tr>
+
+                    <!-- Modal حذف -->
+                    {% if session.role in ['admin', 'root'] %}
+                    <div class="modal fade" id="deleteModal{{ trip.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">حذف الرحلة #{{ trip.id }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>هل أنت متأكد من حذف هذه الرحلة؟</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                    <form action="{{ url_for('delete_trip', tid=trip.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-danger">حذف</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
