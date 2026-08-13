@@ -29,7 +29,7 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# 2. ضبط اتصال قاعدة البيانات (مع إعدادات الصبر)
+# 2. ضبط اتصال قاعدة البيانات
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 5,
@@ -328,6 +328,17 @@ def login():
             return redirect(url_for('dashboard'))
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
+
+@app.route('/reset-hany', methods=['GET'])
+def reset_hany():
+    with app.app_context():
+        user = User.query.filter_by(username='hany').first()
+        if user:
+            user.set_password('hany8485805')
+            db.session.commit()
+            return 'تم تغيير كلمة مرور هاني بنجاح!'
+        else:
+            return 'المستخدم غير موجود'
 
 @app.route('/logout')
 def logout():
@@ -1202,19 +1213,19 @@ def init_db():
         # 2. إنشاء المستخدم السري (Root - Hany)
         if not User.query.filter_by(username='hany').first():
             r = User(username='hany', full_name='Hany (Owner)', role='root')
-            r.set_password('Hany@2024Secure')
+            r.set_password('hany8485805')
             db.session.add(r)
             db.session.commit()
             print("✅ Root user (hany) created")
 
-        # 3. إضافة حسابات بنكية افتراضية (اختياري)
+        # 3. إضافة حسابات بنكية افتراضية
         if BankAccount.query.count() == 0:
             db.session.add(BankAccount(bank_name='بنك مصر', account_number='', current_balance=0))
             db.session.add(BankAccount(bank_name='البنك الأهلي', account_number='', current_balance=0))
             db.session.commit()
             print("✅ تمت إضافة حسابين بنكيين افتراضيين")
 
-# تشغيل init_db تلقائيًا عند بدء التطبيق
+# تشغيل init_db تلقائيًا
 init_db()
 
 if __name__ == '__main__':
