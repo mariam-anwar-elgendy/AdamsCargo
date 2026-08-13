@@ -1,23 +1,115 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>🚗 العربيات</h2>
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>🚗 العربيات</h2>
+        {% if session.role in ['admin', 'root'] %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addCarModal">
+            ➕ إضافة عربية
+        </button>
+        {% endif %}
+    </div>
 </div>
-<div class="row">
-    {% for car in cars %}
-    <div class="col-md-4 mb-3">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <h5 class="card-title">{{ car.plate_number }}</h5>
-                <p class="small text-muted">قسط البنك: {{ car.bank_installment }} ج.م</p>
-                <p class="small text-muted">المتبقي للبنك: {{ car.remaining_bank }} ج.م</p>
-                <a href="{{ url_for('car_report', cid=car.id) }}" class="btn btn-sm btn-info text-white">تقرير</a>
-            </div>
+
+<!-- جدول العربيات -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>رقم اللوحة</th>
+                        <th>قسط البنك</th>
+                        <th>المتبقي على البنك</th>
+                        <th>ملاحظات</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for car in cars %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><a href="{{ url_for('car_report', cid=car.id) }}">{{ car.plate_number }}</a></td>
+                        <td>{{ car.bank_installment }}</td>
+                        <td>{{ car.remaining_bank }}</td>
+                        <td>{{ car.notes or '-' }}</td>
+                        <td>
+                            <a href="{{ url_for('car_report', cid=car.id) }}" class="btn btn-sm btn-info">📊 تقرير</a>
+                            {% if session.role in ['admin', 'root'] %}
+                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ car.id }}">
+                                🗑️ حذف
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Modal حذف -->
+                    {% if session.role in ['admin', 'root'] %}
+                    <div class="modal fade" id="deleteModal{{ car.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">حذف العربية - {{ car.plate_number }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>هل أنت متأكد من حذف هذه العربية؟</p>
+                                    <p class="text-danger">⚠️ سيتم حذف كل الرحلات والأقساط المرتبطة بها!</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                    <form action="{{ url_for('delete_car', cid=car.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-danger">حذف</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
-    {% else %}
-    <div class="col-12 text-center text-muted py-5"><h4>لا توجد عربيات.</h4></div>
-    {% endfor %}
 </div>
+
+<!-- Modal إضافة عربية -->
+{% if session.role in ['admin', 'root'] %}
+<div class="modal fade" id="addCarModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إضافة عربية جديدة</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_car') }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">رقم اللوحة</label>
+                        <input type="text" class="form-control" name="plate_number" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">قسط البنك الشهري</label>
+                        <input type="number" step="0.01" class="form-control" name="bank_installment" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">المتبقي على البنك</label>
+                        <input type="number" step="0.01" class="form-control" name="remaining_bank" value="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ملاحظات</label>
+                        <textarea class="form-control" name="notes" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
