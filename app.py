@@ -20,7 +20,6 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = 'shipping-company-secret-key-2024'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 1. الحصول على رابط قاعدة البيانات من البيئة (أو استخدام الرابط المباشر)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     DATABASE_URL = 'postgresql://adamscargo_postgress_user:NTnTZ1hYiCXJ1nrUnAyCsQym8Xm5ViUc@dpg-d9tjhrqd0e5s739brvl0-a/adamscargo_postgress'
@@ -29,7 +28,6 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# 2. ضبط اتصال قاعدة البيانات
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'pool_size': 5,
@@ -47,7 +45,6 @@ BACKUP_FOLDER_ID = None
 db = SQLAlchemy(app)
 
 # ==================== MODELS ====================
-
 class User(db.Model):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -329,27 +326,10 @@ def login():
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
 
-@app.route('/reset-hany', methods=['GET'])
-def reset_hany():
-    with app.app_context():
-        user = User.query.filter_by(username='hany').first()
-        if user:
-            user.set_password('hany8485805')
-            db.session.commit()
-            return 'تم تغيير كلمة مرور هاني بنجاح!'
-        else:
-            return 'المستخدم غير موجود'
-
 @app.route('/logout')
 def logout():
     session.clear()
     flash('تم الخروج','info')
-    return redirect(url_for('login'))
-
-@app.route('/index')
-def index():
-    if 'user_id' in session:
-        return redirect(url_for('dashboard'))
     return redirect(url_for('login'))
 
 # ==================== DASHBOARD ====================
@@ -363,24 +343,18 @@ def dashboard():
     today_tr = Trip.query.filter_by(date=date.today()).all()
     today_net = sum(t.net_profit for t in today_tr)
     today_nau = sum(t.nauloon for t in today_tr)
-    
     bank_accounts = BankAccount.query.all()
     total_bank_balance = sum(a.current_balance for a in bank_accounts)
-    
     loans = BankLoan.query.filter(BankLoan.remaining > 0).all()
     loan_rem = sum(l.remaining for l in loans)
-    
     recent = Trip.query.order_by(Trip.date.desc()).limit(10).all()
-    
     pending = []
     for c in Customer.query.all():
         tn = db.session.query(db.func.sum(Trip.nauloon)).filter(Trip.customer_id==c.id).scalar() or 0
         tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==c.id).scalar() or 0
         r = tn - tp
         if r > 0: pending.append({'customer':c,'remaining':r})
-    
     upcoming = Installment.query.filter(Installment.paid==False, Installment.due_date>=date.today()).order_by(Installment.due_date.asc()).limit(5).all()
-    
     return render_template('dashboard.html', total_trips=tt, total_customers=tcust, total_cars=tcar,
                            today_net=today_net, today_nauloon=today_nau, today_trips_count=len(today_tr),
                            total_bank_balance=total_bank_balance, total_loan_remaining=loan_rem, recent_trips=recent,
@@ -475,8 +449,9 @@ def pay_land():
     flash(f'تم دفع {amt} للأرض (مستقل عن البنك)','success')
     return redirect(url_for('land_loan'))
 
-# ==================== FINANCIAL TRANSACTIONS ====================
+# ==================== FINANCIAL TRANSACTIONS (ADMIN & ROOT) ====================
 @app.route('/transactions')
+@login_required
 @admin_required
 def financial_transactions():
     txns = FinancialTransaction.query.order_by(FinancialTransaction.date.asc()).all()
@@ -492,7 +467,6 @@ def add_transaction():
         bank_account_id = request.form.get('bank_account_id') or None
         amount = float(request.form['amount'])
         txn_type = request.form['type']
-        
         txn = FinancialTransaction(
             date=datetime.strptime(request.form['date'], '%Y-%m-%d').date(),
             person_name=request.form['person_name'],
@@ -504,7 +478,6 @@ def add_transaction():
         )
         db.session.add(txn)
         db.session.flush()
-        
         if bank_account_id:
             account = BankAccount.query.get(bank_account_id)
             if account:
@@ -528,13 +501,11 @@ def add_transaction():
                         account_id=bank_account_id,
                         created_by=session['user_id']
                     ))
-        
         db.session.commit()
         flash('تمت إضافة المعاملة المالية','success')
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
-    
     return redirect(url_for('financial_transactions'))
 
 # ==================== TRIPS ====================
@@ -547,27 +518,22 @@ def add_trip():
             dn = request.form.get('driver_name','').strip()
             cn = request.form.get('customer_name','').strip()
             cp = request.form.get('customer_phone','').strip()
-            
             car = Car.query.filter_by(plate_number=pn).first()
             if not car and pn:
                 car = Car(plate_number=pn)
                 db.session.add(car)
                 db.session.flush()
-                
             cust = Customer.query.filter_by(name=cn).first()
             if not cust and cn:
                 cust = Customer(name=cn, phone=cp)
                 db.session.add(cust)
                 db.session.flush()
-                
             nau = float(request.form.get('nauloon', 0) or 0)
             sol = float(request.form.get('solar', 0) or 0)
             exp = float(request.form.get('expenses', 0) or 0)
             dp = float(request.form.get('driver_pay', 0) or 0)
             net = nau - sol - exp - dp
-            
             trip_date = datetime.strptime(request.form.get('date', str(date.today())), '%Y-%m-%d').date()
-            
             trip = Trip(
                 date=trip_date,
                 car_id=car.id if car else None,
@@ -585,7 +551,6 @@ def add_trip():
             )
             db.session.add(trip)
             db.session.flush()
-            
             paid = float(request.form.get('paid_now', 0) or 0)
             if paid > 0:
                 db.session.add(Payment(
@@ -595,20 +560,16 @@ def add_trip():
                     amount=paid,
                     notes='دفعة مع الرحلة'
                 ))
-                
             db.session.commit()
             flash('تمت الإضافة بنجاح', 'success')
-            
         except Exception as e:
             db.session.rollback()
             flash(f'حدث خطأ: {str(e)}', 'danger')
             print(f"Error: {e}")
-            
         return redirect(url_for('add_trip'))
-    
     return render_template(
-        'add_trip.html', 
-        cars=Car.query.order_by(Car.plate_number.asc()).all(), 
+        'add_trip.html',
+        cars=Car.query.order_by(Car.plate_number.asc()).all(),
         customers=Customer.query.order_by(Customer.name.asc()).all(),
         today=date.today()
     )
@@ -619,51 +580,30 @@ def trips_list():
     trips = Trip.query.order_by(Trip.date.asc()).all()
     return render_template('trips.html', trips=trips)
 
-@app.route('/trips/edit/<int:tid>', methods=['GET', 'POST'])
+@app.route('/trips/edit/<int:id>', methods=['GET', 'POST'])
 @admin_required
-def edit_trip(tid):
-    trip = Trip.query.get_or_404(tid)
-    
+def edit_trip(id):
+    trip = Trip.query.get_or_404(id)
     if request.method == 'POST':
         try:
             trip.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
             trip.driver_name = request.form['driver_name']
             trip.from_location = request.form.get('from_location', '')
             trip.to_location = request.form.get('to_location', '')
-            trip.nauloon = float(request.form.get('nauloon', 0) or 0)
-            trip.solar = float(request.form.get('solar', 0) or 0)
-            trip.expenses = float(request.form.get('expenses', 0) or 0)
-            trip.driver_pay = float(request.form.get('driver_pay', 0) or 0)
+            trip.nauloon = float(request.form['nauloon'])
+            trip.solar = float(request.form.get('solar', 0))
+            trip.expenses = float(request.form.get('expenses', 0))
+            trip.driver_pay = float(request.form.get('driver_pay', 0))
             trip.net_profit = trip.nauloon - trip.solar - trip.expenses - trip.driver_pay
             trip.notes = request.form.get('notes', '')
-            
-            pn = request.form.get('plate_number', '').strip()
-            if pn:
-                car = Car.query.filter_by(plate_number=pn).first()
-                if not car:
-                    car = Car(plate_number=pn)
-                    db.session.add(car)
-                    db.session.flush()
-                trip.car_id = car.id
-            
-            cn = request.form.get('customer_name', '').strip()
-            if cn:
-                cust = Customer.query.filter_by(name=cn).first()
-                if not cust:
-                    cust = Customer(name=cn, phone=request.form.get('customer_phone', ''))
-                    db.session.add(cust)
-                    db.session.flush()
-                trip.customer_id = cust.id
-            
             db.session.commit()
-            flash('تم تحديث الرحلة بنجاح', 'success')
+            flash('تم تعديل الرحلة بنجاح', 'success')
             return redirect(url_for('trips_list'))
         except Exception as e:
             db.session.rollback()
-            flash(f'حدث خطأ: {str(e)}', 'danger')
-    
-    cars = Car.query.order_by(Car.plate_number.asc()).all()
-    customers = Customer.query.order_by(Customer.name.asc()).all()
+            flash(f'حدث خطأ أثناء التعديل: {str(e)}', 'danger')
+    cars = Car.query.order_by(Car.plate_number).all()
+    customers = Customer.query.order_by(Customer.name).all()
     return render_template('edit_trip.html', trip=trip, cars=cars, customers=customers)
 
 @app.route('/api/trips/<int:tid>/delete', methods=['POST'])
@@ -713,11 +653,9 @@ def delete_customer(cid):
 def add_payment():
     cid = request.form.get('customer_id')
     tid = request.form.get('trip_id')
-    
     if not cid:
         flash('يرجى اختيار العميل','danger')
         return redirect(request.referrer or url_for('customers'))
-    
     amt = float(request.form.get('amount', 0) or 0)
     db.session.add(Payment(
         date=datetime.strptime(request.form['date'],'%Y-%m-%d').date(),
@@ -745,22 +683,13 @@ def car_report(cid):
     for t in tr:
         drivers[t.driver_name] = drivers.get(t.driver_name, 0) + 1
     insts = Installment.query.filter_by(car_id=cid).order_by(Installment.due_date.asc()).all()
-    bank_accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
     return render_template('car_report.html', car=c, trips=tr, trip_count=len(tr),
                            total_nauloon=sum(t.nauloon for t in tr),
                            total_solar=sum(t.solar for t in tr),
                            total_expenses=sum(t.expenses for t in tr),
                            total_driver_pay=sum(t.driver_pay for t in tr),
                            total_net=sum(t.net_profit for t in tr),
-                           drivers=drivers, installments=insts, bank_accounts=bank_accounts)
-
-@app.route('/installments')
-@admin_required
-def installments():
-    insts = Installment.query.order_by(Installment.due_date.asc()).all()
-    paid_count = sum(1 for i in insts if i.paid)
-    unpaid_count = sum(1 for i in insts if not i.paid)
-    return render_template('installments.html', installments=insts, paid_count=paid_count, unpaid_count=unpaid_count)
+                           drivers=drivers, installments=insts)
 
 @app.route('/api/cars/add', methods=['POST'])
 @admin_required
@@ -791,24 +720,19 @@ def add_installment():
     if not car:
         flash('العربية غير موجودة','danger')
         return redirect(url_for('cars'))
-    
     amt = float(request.form.get('amount', 0) or 0)
     account_id = request.form.get('account_id')
-    
     if not account_id:
         flash('يرجى اختيار الحساب البنكي','danger')
         return redirect(url_for('cars'))
-    
     inst = Installment(
         car_id=cid,
         due_date=datetime.strptime(request.form['due_date'],'%Y-%m-%d').date(),
         amount=amt
     )
     car.remaining_bank += amt
-    
     db.session.add(inst)
     db.session.flush()
-    
     account = BankAccount.query.get(account_id)
     if account:
         account.current_balance -= amt
@@ -820,7 +744,6 @@ def add_installment():
             account_id=account_id,
             created_by=session['user_id']
         ))
-    
     db.session.commit()
     flash('تم إضافة القسط وسحبه من البنك','success')
     return redirect(url_for('cars'))
@@ -834,7 +757,6 @@ def pay_installment(iid):
     car = Car.query.get(inst.car_id)
     if car:
         car.remaining_bank -= inst.amount
-    
     account_id = request.form.get('account_id')
     if account_id:
         account = BankAccount.query.get(account_id)
@@ -848,7 +770,6 @@ def pay_installment(iid):
                 account_id=account_id,
                 created_by=session['user_id']
             ))
-    
     db.session.commit()
     flash('تم دفع القسط وسحبه من البنك','success')
     return redirect(url_for('cars'))
@@ -864,7 +785,7 @@ def delete_car(cid):
     flash('تم الحذف','success')
     return redirect(url_for('cars'))
 
-# ==================== BANK ACCOUNTS ====================
+# ==================== BANK ACCOUNTS (ADMIN & ROOT) ====================
 @app.route('/bank/accounts')
 @admin_required
 def bank_accounts():
@@ -879,7 +800,6 @@ def add_bank_account():
     if not bank_name:
         flash('يرجى إدخال اسم البنك','danger')
         return redirect(url_for('bank_accounts'))
-    
     account = BankAccount(
         bank_name=bank_name,
         account_number=request.form.get('account_number', '').strip(),
@@ -907,29 +827,24 @@ def edit_bank_account(aid):
 @admin_required
 def delete_bank_account(aid):
     account = BankAccount.query.get_or_404(aid)
-    
     if account.transactions:
         flash('لا يمكن حذف الحساب لوجود معاملات مرتبطة به','danger')
         return redirect(url_for('bank_accounts'))
-    
     db.session.delete(account)
     db.session.commit()
     flash('تم حذف الحساب','success')
     return redirect(url_for('bank_accounts'))
 
-# ==================== BANK ====================
+# ==================== BANK (ADMIN) ====================
 @app.route('/bank')
 @admin_required
 def bank():
     accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
     total_balance = sum(a.current_balance for a in accounts)
-    
     loans = BankLoan.query.filter(BankLoan.remaining > 0).all()
     loan_rem = sum(l.remaining for l in loans)
-    
     recent_transactions = BankTransaction.query.order_by(BankTransaction.date.asc()).all()
-    
-    return render_template('bank.html', 
+    return render_template('bank.html',
                            accounts=accounts,
                            total_balance=total_balance,
                            total_loan_remaining=loan_rem,
@@ -944,20 +859,16 @@ def add_bank_transaction():
     if not account_id:
         flash('يرجى اختيار الحساب البنكي','danger')
         return redirect(url_for('bank'))
-    
     account = BankAccount.query.get(account_id)
     if not account:
         flash('الحساب غير موجود','danger')
         return redirect(url_for('bank'))
-    
     txn_type = request.form['type']
     amount = float(request.form['amount'] or 0)
-    
     if txn_type == 'deposit':
         account.current_balance += amount
     elif txn_type == 'withdraw':
         account.current_balance -= amount
-    
     db.session.add(BankTransaction(
         date=datetime.strptime(request.form['date'],'%Y-%m-%d').date(),
         type=txn_type,
@@ -983,11 +894,9 @@ def add_bank_loan():
     amt = float(request.form['total_amount'] or 0)
     mon = float(request.form['monthly_installment'] or 0)
     account_id = request.form.get('account_id')
-    
     if not account_id:
         flash('يرجى اختيار الحساب البنكي','danger')
         return redirect(url_for('bank_loans'))
-    
     loan = BankLoan(
         start_date=datetime.strptime(request.form['start_date'],'%Y-%m-%d').date(),
         total_amount=amt,
@@ -998,7 +907,6 @@ def add_bank_loan():
     )
     db.session.add(loan)
     db.session.flush()
-    
     account = BankAccount.query.get(account_id)
     if account:
         account.current_balance += amt
@@ -1011,7 +919,6 @@ def add_bank_loan():
             loan_id=loan.id,
             created_by=session['user_id']
         ))
-    
     db.session.commit()
     flash('تمت إضافة القرض','success')
     return redirect(url_for('bank_loans'))
@@ -1022,21 +929,17 @@ def pay_loan_installment(lid):
     loan = BankLoan.query.get_or_404(lid)
     amt = float(request.form['amount'] or 0)
     account_id = request.form.get('account_id')
-    
     if not account_id:
         flash('يرجى اختيار الحساب البنكي','danger')
         return redirect(url_for('bank_loans'))
-    
     db.session.add(LoanPayment(
         loan_id=lid,
         date=datetime.strptime(request.form['date'],'%Y-%m-%d').date(),
         amount=amt,
         notes=request.form.get('notes','')
     ))
-    
     loan.total_paid += amt
     loan.remaining = loan.total_amount - loan.total_paid
-    
     account = BankAccount.query.get(account_id)
     if account:
         account.current_balance -= amt
@@ -1049,7 +952,6 @@ def pay_loan_installment(lid):
             loan_id=lid,
             created_by=session['user_id']
         ))
-    
     db.session.commit()
     flash('تم السداد','success')
     return redirect(url_for('bank_loans'))
@@ -1078,15 +980,12 @@ def monthly_report():
         end_date = date(year + 1, 1, 1)
     else:
         end_date = date(year, mon + 1, 1)
-    
     tr = Trip.query.filter(Trip.date >= start_date, Trip.date < end_date).order_by(Trip.date.asc()).all()
-    
     total_nauloon = sum(t.nauloon for t in tr)
     total_solar = sum(t.solar for t in tr)
     total_expenses = sum(t.expenses for t in tr)
     total_driver_pay = sum(t.driver_pay for t in tr)
     total_net = sum(t.net_profit for t in tr)
-    
     daily_summary = {}
     for t in tr:
         d = t.date
@@ -1098,10 +997,8 @@ def monthly_report():
         daily_summary[d]['expenses'] += t.expenses
         daily_summary[d]['driver_pay'] += t.driver_pay
         daily_summary[d]['net'] += t.net_profit
-    
     sorted_daily = dict(sorted(daily_summary.items()))
-    
-    return render_template('monthly_report.html', 
+    return render_template('monthly_report.html',
                            report_month=month, trips=tr,
                            total_nauloon=total_nauloon,
                            total_solar=total_solar,
@@ -1137,7 +1034,6 @@ def export_monthly_report(month):
         end_date = date(year + 1, 1, 1)
     else:
         end_date = date(year, mon + 1, 1)
-    
     tr = Trip.query.filter(Trip.date >= start_date, Trip.date < end_date).order_by(Trip.date.asc()).all()
     df = pd.DataFrame([{'التاريخ':str(t.date),'العربية':t.car.plate_number if t.car else '','السائق':t.driver_name,
                         'العميل':t.customer.name if t.customer else '','من':t.from_location,'إلى':t.to_location,
@@ -1202,7 +1098,6 @@ def init_db():
     with app.app_context():
         db.create_all()
 
-        # 1. إنشاء الأدمن
         if not User.query.filter_by(username='admin').first():
             a = User(username='admin', full_name='مدير النظام', role='admin')
             a.set_password('admin123')
@@ -1210,24 +1105,20 @@ def init_db():
             db.session.commit()
             print("✅ Admin: admin / admin123")
 
-        # 2. إنشاء المستخدم السري (Root - Hany)
         if not User.query.filter_by(username='hany').first():
             r = User(username='hany', full_name='Hany (Owner)', role='root')
-            r.set_password('hany8485805')
+            r.set_password('Hany@2024Secure')
             db.session.add(r)
             db.session.commit()
             print("✅ Root user (hany) created")
 
-        # 3. إضافة حسابات بنكية افتراضية
         if BankAccount.query.count() == 0:
             db.session.add(BankAccount(bank_name='بنك مصر', account_number='', current_balance=0))
             db.session.add(BankAccount(bank_name='البنك الأهلي', account_number='', current_balance=0))
             db.session.commit()
             print("✅ تمت إضافة حسابين بنكيين افتراضيين")
 
-# تشغيل init_db تلقائيًا
-init_db()
-
 if __name__ == '__main__':
+    init_db()
     threading.Thread(target=scheduler_loop, daemon=True).start()
     print("✅ Scheduler running")
