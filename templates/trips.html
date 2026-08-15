@@ -50,9 +50,12 @@
                         <td>{{ trip.net_profit }}</td>
                         <td>
                             {% if session.role in ['admin', 'root'] %}
-                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ trip.id }}">
-                                🗑️ حذف
-                            </button>
+                                <a href="{{ url_for('edit_trip', id=trip.id) }}" class="btn btn-sm btn-warning">✏️ تعديل</a>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ trip.id }}">
+                                    🗑️ حذف
+                                </button>
+                            {% else %}
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                     </tr>
