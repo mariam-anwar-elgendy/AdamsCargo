@@ -326,7 +326,8 @@ def login():
         if user and user.check_password(p):
             session.update(user_id=user.id, username=user.username, full_name=user.full_name, role=user.role)
             flash(f'مرحباً {user.full_name}!','success')
-            return redirect(url_for('dashboard'))
+            # التعديل المهم هنا (استخدمنا redirect مباشرة بدل url_for)
+            return redirect('/dashboard')
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
 
@@ -412,7 +413,7 @@ def reset_user_password(uid):
     u = User.query.get_or_404(uid)
     u.set_password(request.form.get('new_password',''))
     db.session.commit()
-    flash(f'تم تغيير كلمة المرور لـ {u.full_name}','success')
+    flash(f'تم تغيير कلمة المرور لـ {u.full_name}','success')
     return redirect(url_for('users'))
 
 # ==================== LAND LOAN (ROOT ONLY) ====================
