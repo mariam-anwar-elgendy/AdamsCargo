@@ -20,7 +20,6 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 # 1. إعدادات الأمان والجلسة (Session fix)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-# التعديل النهائي لحل مشكلة المتصفحات (SameSite=None + Secure)
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -328,7 +327,7 @@ def login():
         if user and user.check_password(p):
             session.update(user_id=user.id, username=user.username, full_name=user.full_name, role=user.role)
             flash(f'مرحباً {user.full_name}!','success')
-            session.permanent = True  # تثبيت الجلسة
+            session.permanent = True
             return redirect('/dashboard')
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
@@ -1099,6 +1098,11 @@ def not_found(e):
 def internal_error(e):
     db.session.rollback()
     return render_template('login.html'), 500
+
+# ==================== HEALTH CHECK (لمنع السيرفر من الإغلاق) ====================
+@app.route('/health')
+def health_check():
+    return 'OK', 200
 
 # ==================== INIT ====================
 def init_db():
