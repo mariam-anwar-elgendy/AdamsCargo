@@ -17,9 +17,13 @@ from pydrive.drive import GoogleDrive
 # ==================== CONFIGURATION ====================
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
-app.config['SECRET_KEY'] = 'shipping-company-secret-key-2024'
+# 1. إعدادات الأمان والجلسة (Session fix)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# 2. الحصول على رابط قاعدة البيانات
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     DATABASE_URL = 'postgresql://adamscargo_postgress_user:NTnTZ1hYiCXJ1nrUnAyCsQym8Xm5ViUc@dpg-d9tjhrqd0e5s739brvl0-a/adamscargo_postgress'
