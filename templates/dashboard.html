@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block content %}
 <div class="row mb-4">
@@ -206,7 +206,7 @@
     </div>
 </div>
 
-{% if session.role in ['admin', 'root'] %}
+{% if session.role in ["admin", "root"] %}
 <div class="row mb-4">
     <div class="col-12">
         <div class="card shadow-sm">
