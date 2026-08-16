@@ -20,7 +20,9 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 # 1. إعدادات الأمان والجلسة (Session fix)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+# التعديل النهائي لحل مشكلة المتصفحات (SameSite=None + Secure)
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'
+app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 2. الحصول على رابط قاعدة البيانات
@@ -326,7 +328,7 @@ def login():
         if user and user.check_password(p):
             session.update(user_id=user.id, username=user.username, full_name=user.full_name, role=user.role)
             flash(f'مرحباً {user.full_name}!','success')
-            # التعديل المهم هنا (استخدمنا redirect مباشرة بدل url_for)
+            session.permanent = True  # تثبيت الجلسة
             return redirect('/dashboard')
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
@@ -413,7 +415,7 @@ def reset_user_password(uid):
     u = User.query.get_or_404(uid)
     u.set_password(request.form.get('new_password',''))
     db.session.commit()
-    flash(f'تم تغيير कلمة المرور لـ {u.full_name}','success')
+    flash(f'تم تغيير كلمة المرور لـ {u.full_name}','success')
     return redirect(url_for('users'))
 
 # ==================== LAND LOAN (ROOT ONLY) ====================
