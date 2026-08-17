@@ -18,9 +18,13 @@ from pydrive.drive import GoogleDrive
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
+
+# === إعدادات الجلسة (لحل مشكلة الخروج المفاجئ) ===
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 DATABASE_URL = os.environ.get('DATABASE_URL')
@@ -324,8 +328,8 @@ def login():
         user = User.query.filter_by(username=u, active=True).first()
         if user and user.check_password(p):
             session.update(user_id=user.id, username=user.username, full_name=user.full_name, role=user.role)
+            session.permanent = True  # تثبيت الجلسة
             flash(f'مرحباً {user.full_name}!','success')
-            session.permanent = True
             return redirect('/dashboard')
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
@@ -453,10 +457,9 @@ def pay_land():
     flash(f'تم دفع {amt} للأرض (مستقل عن البنك)','success')
     return redirect(url_for('land_loan'))
 
-# ==================== FINANCIAL TRANSACTIONS (ADMIN & ROOT) ====================
+# ==================== FINANCIAL TRANSACTIONS ====================
 @app.route('/transactions')
 @login_required
-@admin_required
 def financial_transactions():
     txns = FinancialTransaction.query.order_by(FinancialTransaction.date.desc()).all()
     total_given = db.session.query(db.func.sum(FinancialTransaction.amount)).filter(FinancialTransaction.type=='given').scalar() or 0
