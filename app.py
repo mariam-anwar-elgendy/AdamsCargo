@@ -465,7 +465,7 @@ def financial_transactions():
     total_given = db.session.query(db.func.sum(FinancialTransaction.amount)).filter(FinancialTransaction.type=='given').scalar() or 0
     total_received = db.session.query(db.func.sum(FinancialTransaction.amount)).filter(FinancialTransaction.type=='received').scalar() or 0
     bank_accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
-    return render_template('transactions.html', transactions=txns, total_given=total_given, total_received=total_received, bank_accounts=bank_accounts)
+    return render_template('transactions.html', transactions=txns, total_given=total_given, total_received=total_received, bank_accounts=bank_accounts, date=date.today())
 
 @app.route('/api/transactions/add', methods=['POST'])
 @admin_required
