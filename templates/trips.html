@@ -49,18 +49,21 @@
                         <td>{{ trip.driver_pay }}</td>
                         <td>{{ trip.net_profit }}</td>
                         <td>
-                            {% if session.role in ['admin', 'root'] %}
+                            <!-- زر التعديل يظهر للأدمن والرووت، وللمستخدم صاحب الرحلة -->
+                            {% if session.role in ['admin', 'root'] or trip.created_by == session.user_id %}
                                 <a href="{{ url_for('edit_trip', id=trip.id) }}" class="btn btn-sm btn-warning">✏️ تعديل</a>
+                            {% endif %}
+
+                            <!-- زر الحذف للأدمن والرووت فقط -->
+                            {% if session.role in ['admin', 'root'] %}
                                 <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ trip.id }}">
                                     🗑️ حذف
                                 </button>
-                            {% else %}
-                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                     </tr>
 
-                    <!-- Modal حذف -->
+                    <!-- Modal حذف (للأدمن والرووت فقط) -->
                     {% if session.role in ['admin', 'root'] %}
                     <div class="modal fade" id="deleteModal{{ trip.id }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog">
