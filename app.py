@@ -17,14 +17,12 @@ from pydrive.drive import GoogleDrive
 # ==================== CONFIGURATION ====================
 app = Flask(__name__, template_folder='templates', static_folder='static')
 
-# 1. إعدادات الأمان والجلسة (Session fix)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 2. الحصول على رابط قاعدة البيانات
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if not DATABASE_URL:
     DATABASE_URL = 'postgresql://adamscargo_postgress_user:NTnTZ1hYiCXJ1nrUnAyCsQym8Xm5ViUc@dpg-d9tjhrqd0e5s739brvl0-a/adamscargo_postgress'
@@ -460,7 +458,7 @@ def pay_land():
 @login_required
 @admin_required
 def financial_transactions():
-    txns = FinancialTransaction.query.order_by(FinancialTransaction.date.asc()).all()
+    txns = FinancialTransaction.query.order_by(FinancialTransaction.date.desc()).all()
     total_given = db.session.query(db.func.sum(FinancialTransaction.amount)).filter(FinancialTransaction.type=='given').scalar() or 0
     total_received = db.session.query(db.func.sum(FinancialTransaction.amount)).filter(FinancialTransaction.type=='received').scalar() or 0
     bank_accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
@@ -587,9 +585,15 @@ def trips_list():
     return render_template('trips.html', trips=trips)
 
 @app.route('/trips/edit/<int:id>', methods=['GET', 'POST'])
-@admin_required
+@login_required
 def edit_trip(id):
     trip = Trip.query.get_or_404(id)
+    
+    # السماح للمستخدم العادي بتعديل رحلته فقط، والأدمن/الرووت بتعديل أي رحلة
+    if session.get('role') not in ['admin', 'root'] and trip.created_by != session['user_id']:
+        flash('ليس لديك صلاحية لتعديل هذه الرحلة', 'danger')
+        return redirect(url_for('trips_list'))
+
     if request.method == 'POST':
         try:
             trip.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
@@ -1099,7 +1103,7 @@ def internal_error(e):
     db.session.rollback()
     return render_template('login.html'), 500
 
-# ==================== HEALTH CHECK (لمنع السيرفر من الإغلاق) ====================
+# ==================== HEALTH CHECK ====================
 @app.route('/health')
 def health_check():
     return 'OK', 200
