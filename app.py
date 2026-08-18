@@ -21,8 +21,8 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret
 
 # إعدادات الجلسة
 app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'
-app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = False
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -363,13 +363,16 @@ def login():
         p = request.form.get('password','')
         user = User.query.filter_by(username=u, active=True).first()
         if user and user.check_password(p):
-            session.update(user_id=user.id, username=user.username, full_name=user.full_name, role=user.role)
+            session.clear()  # مسح أي جلسة قديمة
+            session['user_id'] = user.id
+            session['username'] = user.username
+            session['full_name'] = user.full_name
+            session['role'] = user.role
             session.permanent = True
             flash(f'مرحباً {user.full_name}!','success')
-            return render_template('dashboard.html', **get_dashboard_context())
+            return redirect(url_for('dashboard'))  # استخدمي redirect
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
-
 @app.route('/logout')
 def logout():
     session.clear()
