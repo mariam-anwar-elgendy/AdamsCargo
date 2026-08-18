@@ -31,13 +31,18 @@
             <th>المبلغ</th>
             <th>الوصف</th>
             <th>الحساب البنكي</th>
+            <th>إجراءات</th>
         </tr>
     </thead>
     <tbody>
         {% for txn in transactions %}
         <tr>
             <td>{{ txn.date }}</td>
-            <td>{{ txn.person_name }}</td>
+            <td>
+                <a href="{{ url_for('person_transactions', person_name=txn.person_name) }}" class="fw-bold text-primary">
+                    {{ txn.person_name }}
+                </a>
+            </td>
             <td>
                 {% if txn.type == 'given' %}
                     <span class="badge bg-danger">مدفوع</span>
@@ -48,6 +53,14 @@
             <td>{{ txn.amount }}</td>
             <td>{{ txn.description }}</td>
             <td>{{ txn.bank_account.bank_name if txn.bank_account else 'نقدي' }}</td>
+            <td>
+                {% if session.role in ['admin', 'root'] %}
+                    <a href="#" class="btn btn-sm btn-warning">✏️ تعديل</a>
+                    <button class="btn btn-sm btn-danger" onclick="if(confirm('هل أنت متأكد من الحذف؟')) fetch('/api/financial_transactions/{{ txn.id }}/delete', {method:'POST'}).then(()=>location.reload())">🗑️ حذف</button>
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
