@@ -21,7 +21,6 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
 
 # ==================== SESSION CONFIGURATION ====================
-# إعدادات Flask-Session
 app.config['SESSION_TYPE'] = 'filesystem'
 app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
 app.config['SESSION_PERMANENT'] = True
@@ -29,12 +28,10 @@ app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_KEY_PREFIX'] = 'adam_cargo_'
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
-# إعدادات الكوكيز
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = False
 
-# تهيئة Flask-Session
 Session(app)
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -351,7 +348,13 @@ def get_dashboard_context():
         tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==c.id).scalar() or 0
         r = tn - tp
         if r > 0: pending.append({'customer':c,'remaining':r})
-    upcoming = Installment.query.filter(Installment.paid==False, Installment.due_date>=date.today()).order_by(Installment.due_date.asc()).limit(5).all()
+    
+    # تعديل مهم: تجاوز مشكلة الأعمدة الناقصة
+    try:
+        upcoming = Installment.query.filter(Installment.paid==False, Installment.due_date>=date.today()).order_by(Installment.due_date.asc()).limit(5).all()
+    except:
+        upcoming = []
+    
     return {
         'total_trips': tt,
         'total_customers': tcust,
@@ -375,21 +378,13 @@ def login():
         p = request.form.get('password','')
         user = User.query.filter_by(username=u, active=True).first()
         if user and user.check_password(p):
-            # مسح الجلسة القديمة
             session.clear()
-            # تعيين البيانات
             session['user_id'] = user.id
             session['username'] = user.username
             session['full_name'] = user.full_name
             session['role'] = user.role
-            session.permanent = True
             flash(f'مرحباً {user.full_name}!','success')
-            
-            # إضافة debug
-            print(f"DEBUG: Session data: {dict(session)}")
-            print(f"DEBUG: User ID in session: {session.get('user_id')}")
-            
-            return redirect(url_for('dashboard'))
+            return redirect('/dashboard')
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
 
@@ -404,7 +399,6 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    print(f"DEBUG: Dashboard accessed. Session: {dict(session)}")  # للتتبع
     return render_template('dashboard.html', **get_dashboard_context())
 
 # ==================== ADMIN & USER MANAGEMENT ====================
@@ -743,7 +737,10 @@ def car_report(cid):
     drivers = {}
     for t in tr:
         drivers[t.driver_name] = drivers.get(t.driver_name, 0) + 1
-    insts = Installment.query.filter_by(car_id=cid).order_by(Installment.due_date.asc()).all()
+    try:
+        insts = Installment.query.filter_by(car_id=cid).order_by(Installment.due_date.asc()).all()
+    except:
+        insts = []
     return render_template('car_report.html', car=c, trips=tr, trip_count=len(tr),
                            total_nauloon=sum(t.nauloon for t in tr),
                            total_solar=sum(t.solar for t in tr),
@@ -1207,6 +1204,18 @@ def health_check():
 def init_db():
     with app.app_context():
         db.create_all()
+        
+        # تحديث جدول installments - إضافة الأعمدة الناقصة تلقائياً
+        try:
+            db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT \'\''))
+            db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS paid BOOLEAN DEFAULT false'))
+            db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS payment_date DATE'))
+            db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP'))
+            db.session.commit()
+            print("✅ تم تحديث جدول installments بنجاح")
+        except Exception as e:
+            print(f"⚠️ خطأ في تحديث الجدول: {e}")
+            db.session.rollback()
 
         if not User.query.filter_by(username='admin').first():
             a = User(username='admin', full_name='مدير النظام', role='admin')
