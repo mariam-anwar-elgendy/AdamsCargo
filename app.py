@@ -19,7 +19,7 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
 
-# إعدادات الجلسة (Session Config)
+# إعدادات الجلسة
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -320,32 +320,8 @@ def scheduler_loop():
         schedule.run_pending()
         time.sleep(60)
 
-# ==================== AUTH ====================
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        u = request.form.get('username','').strip()
-        p = request.form.get('password','')
-        user = User.query.filter_by(username=u, active=True).first()
-        if user and user.check_password(p):
-            session.update(user_id=user.id, username=user.username, full_name=user.full_name, role=user.role)
-            session.permanent = True
-            flash(f'مرحباً {user.full_name}!','success')
-            return redirect(url_for('dashboard'))
-        flash('خطأ في الدخول','danger')
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    flash('تم الخروج','info')
-    return redirect(url_for('login'))
-
-# ==================== DASHBOARD ====================
-@app.route('/')
-@app.route('/dashboard')
-@login_required
-def dashboard():
+# ==================== أداة لجلب متغيرات الداشبورد ====================
+def get_dashboard_context():
     tt = Trip.query.count()
     tcust = Customer.query.count()
     tcar = Car.query.count()
@@ -364,10 +340,48 @@ def dashboard():
         r = tn - tp
         if r > 0: pending.append({'customer':c,'remaining':r})
     upcoming = Installment.query.filter(Installment.paid==False, Installment.due_date>=date.today()).order_by(Installment.due_date.asc()).limit(5).all()
-    return render_template('dashboard.html', total_trips=tt, total_customers=tcust, total_cars=tcar,
-                           today_net=today_net, today_nauloon=today_nau, today_trips_count=len(today_tr),
-                           total_bank_balance=total_bank_balance, total_loan_remaining=loan_rem, recent_trips=recent,
-                           pending_payments=pending, upcoming_installments=upcoming, bank_accounts=bank_accounts)
+    return {
+        'total_trips': tt,
+        'total_customers': tcust,
+        'total_cars': tcar,
+        'today_net': today_net,
+        'today_nauloon': today_nau,
+        'today_trips_count': len(today_tr),
+        'total_bank_balance': total_bank_balance,
+        'total_loan_remaining': loan_rem,
+        'recent_trips': recent,
+        'pending_payments': pending,
+        'upcoming_installments': upcoming,
+        'bank_accounts': bank_accounts
+    }
+
+# ==================== AUTH ====================
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        u = request.form.get('username','').strip()
+        p = request.form.get('password','')
+        user = User.query.filter_by(username=u, active=True).first()
+        if user and user.check_password(p):
+            session.update(user_id=user.id, username=user.username, full_name=user.full_name, role=user.role)
+            session.permanent = True
+            flash(f'مرحباً {user.full_name}!','success')
+            return render_template('dashboard.html', **get_dashboard_context())
+        flash('خطأ في الدخول','danger')
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash('تم الخروج','info')
+    return redirect(url_for('login'))
+
+# ==================== DASHBOARD ====================
+@app.route('/')
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html', **get_dashboard_context())
 
 # ==================== ADMIN & USER MANAGEMENT ====================
 @app.route('/users')
