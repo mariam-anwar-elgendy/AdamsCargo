@@ -19,7 +19,6 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
 
-# === إعدادات الجلسة (لحل مشكلة الخروج المفاجئ) ===
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -125,6 +124,7 @@ class Installment(db.Model):
     car_id = db.Column(db.Integer, db.ForeignKey('cars.id'))
     due_date = db.Column(db.Date)
     amount = db.Column(db.Float)
+    notes = db.Column(db.Text, default='')
     paid = db.Column(db.Boolean, default=False)
     payment_date = db.Column(db.Date)
     created_at = db.Column(db.DateTime, default=datetime.now)
@@ -289,7 +289,7 @@ def backup_database():
                 pd.DataFrame([{'التاريخ':str(p.date),'العميل':p.customer.name if p.customer else '','المبلغ':p.amount} for p in pays]).to_excel(w,sheet_name='الدفعات',index=False)
             insts = Installment.query.order_by(Installment.due_date.asc()).all()
             if insts:
-                pd.DataFrame([{'العربية':i.car.plate_number if i.car else '','الاستحقاق':str(i.due_date),'المبلغ':i.amount,'تم':i.paid} for i in insts]).to_excel(w,sheet_name='الأقساط',index=False)
+                pd.DataFrame([{'العربية':i.car.plate_number if i.car else '','الاستحقاق':str(i.due_date),'المبلغ':i.amount,'تم':i.paid,'ملاحظات':i.notes} for i in insts]).to_excel(w,sheet_name='الأقساط',index=False)
             btx = BankTransaction.query.order_by(BankTransaction.date.asc()).all()
             if btx:
                 pd.DataFrame([{'التاريخ':str(b.date),'النوع':b.type,'المبلغ':b.amount,'الوصف':b.description,'الحساب':b.account.bank_name if b.account else ''} for b in btx]).to_excel(w,sheet_name='البنك',index=False)
@@ -328,7 +328,7 @@ def login():
         user = User.query.filter_by(username=u, active=True).first()
         if user and user.check_password(p):
             session.update(user_id=user.id, username=user.username, full_name=user.full_name, role=user.role)
-            session.permanent = True  # تثبيت الجلسة
+            session.permanent = True
             flash(f'مرحباً {user.full_name}!','success')
             return redirect('/dashboard')
         flash('خطأ في الدخول','danger')
@@ -467,6 +467,18 @@ def financial_transactions():
     bank_accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
     return render_template('transactions.html', transactions=txns, total_given=total_given, total_received=total_received, bank_accounts=bank_accounts, date=date.today())
 
+@app.route('/transactions/<person_name>')
+@login_required
+def person_transactions(person_name):
+    txns = FinancialTransaction.query.filter_by(person_name=person_name).order_by(FinancialTransaction.date.desc()).all()
+    total_given = db.session.query(db.func.sum(FinancialTransaction.amount)).filter(FinancialTransaction.person_name==person_name, FinancialTransaction.type=='given').scalar() or 0
+    total_received = db.session.query(db.func.sum(FinancialTransaction.amount)).filter(FinancialTransaction.person_name==person_name, FinancialTransaction.type=='received').scalar() or 0
+    return render_template('person_transactions.html', 
+                           person_name=person_name, 
+                           transactions=txns, 
+                           total_given=total_given, 
+                           total_received=total_received)
+
 @app.route('/api/transactions/add', methods=['POST'])
 @admin_required
 def add_transaction():
@@ -591,12 +603,9 @@ def trips_list():
 @login_required
 def edit_trip(id):
     trip = Trip.query.get_or_404(id)
-    
-    # السماح للمستخدم العادي بتعديل رحلته فقط، والأدمن/الرووت بتعديل أي رحلة
     if session.get('role') not in ['admin', 'root'] and trip.created_by != session['user_id']:
         flash('ليس لديك صلاحية لتعديل هذه الرحلة', 'danger')
         return redirect(url_for('trips_list'))
-
     if request.method == 'POST':
         try:
             trip.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
@@ -741,7 +750,8 @@ def add_installment():
     inst = Installment(
         car_id=cid,
         due_date=datetime.strptime(request.form['due_date'],'%Y-%m-%d').date(),
-        amount=amt
+        amount=amt,
+        notes=request.form.get('notes', '')
     )
     car.remaining_bank += amt
     db.session.add(inst)
@@ -759,6 +769,26 @@ def add_installment():
         ))
     db.session.commit()
     flash('تم إضافة القسط وسحبه من البنك','success')
+    return redirect(url_for('cars'))
+
+@app.route('/api/installments/<int:iid>/edit', methods=['POST'])
+@admin_required
+def edit_installment(iid):
+    inst = Installment.query.get_or_404(iid)
+    inst.amount = float(request.form.get('amount', inst.amount) or 0)
+    inst.due_date = datetime.strptime(request.form.get('due_date', str(inst.due_date)), '%Y-%m-%d').date()
+    inst.notes = request.form.get('notes', '')
+    db.session.commit()
+    flash('تم تعديل القسط بنجاح','success')
+    return redirect(url_for('cars'))
+
+@app.route('/api/installments/<int:iid>/delete', methods=['POST'])
+@admin_required
+def delete_installment(iid):
+    inst = Installment.query.get_or_404(iid)
+    db.session.delete(inst)
+    db.session.commit()
+    flash('تم حذف القسط بنجاح','success')
     return redirect(url_for('cars'))
 
 @app.route('/api/installments/<int:iid>/pay', methods=['POST'])
@@ -1031,7 +1061,7 @@ def export_daily_report(rd):
                         'أجرة السائق':t.driver_pay,'الصافي':t.net_profit} for t in tr])
     if not df.empty:
         tot = {'التاريخ':'الإجمالي','العربية':'','السائق':'','العميل':'','من':'','إلى':''}
-        for col in ['النولون','السولار','المصاريف','أجرة السائق','الصافي']:
+        for col in ['النولون','السولар','المصاريف','أجرة السائق','الصافي']:
             tot[col] = df[col].sum()
         df.loc['الإجمالي'] = tot
     fn = f'trips_report_{rd}.xlsx'
