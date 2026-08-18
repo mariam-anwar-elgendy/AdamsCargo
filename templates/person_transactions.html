@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>📊 معاملات: {{ person_name }}</h2>
+        <a href="{{ url_for('financial_transactions') }}" class="btn btn-secondary">رجوع</a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card p-3 text-center bg-light">
+            <h5>💸 إجمالي مدفوع</h5>
+            <h3 class="text-danger">{{ total_given }} ج.م</h3>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 text-center bg-light">
+            <h5>💰 إجمالي مستلم</h5>
+            <h3 class="text-success">{{ total_received }} ج.م</h3>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card p-3 text-center bg-light">
+            <h5>📊 الصافي</h5>
+            <h3 class="text-primary">{{ total_received - total_given }} ج.م</h3>
+        </div>
+    </div>
+</div>
+
+{% if transactions %}
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>التاريخ</th>
+            <th>النوع</th>
+            <th>المبلغ</th>
+            <th>الوصف</th>
+            <th>الحساب البنكي</th>
+            <th>إجراءات</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for txn in transactions %}
+        <tr>
+            <td>{{ txn.date }}</td>
+            <td>
+                {% if txn.type == 'given' %}
+                    <span class="badge bg-danger">مدفوع</span>
+                {% else %}
+                    <span class="badge bg-success">مستلم</span>
+                {% endif %}
+            </td>
+            <td>{{ txn.amount }}</td>
+            <td>{{ txn.description }}</td>
+            <td>{{ txn.bank_account.bank_name if txn.bank_account else 'نقدي' }}</td>
+            <td>
+                <a href="#" class="btn btn-sm btn-warning">✏️ تعديل</a>
+                <button class="btn btn-sm btn-danger" onclick="if(confirm('هل أنت متأكد؟')) fetch('/api/financial_transactions/{{ txn.id }}/delete', {method:'POST'}).then(()=>location.reload())">🗑️ حذف</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info text-center">لا توجد معاملات مع {{ person_name }} حتى الآن.</div>
+{% endif %}
+{% endblock %}
