@@ -4,9 +4,11 @@
 <div class="row mb-4">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h2>💳 القروض البنكية</h2>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLoanModal">
-            ➕ إضافة قرض جديد
-        </button>
+        {% if session.role in ['admin', 'root'] %}
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addLoanModal">
+                ➕ إضافة قرض جديد
+            </button>
+        {% endif %}
     </div>
 </div>
 
@@ -46,16 +48,26 @@
                         <td>{{ loan.account.bank_name if loan.account else '-' }}</td>
                         <td>{{ loan.description or '-' }}</td>
                         <td>
-                            {% if loan.remaining > 0 %}
-                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payModal{{ loan.id }}">
-                                💵 سداد قسط
-                            </button>
+                            {% if session.role in ['admin', 'root'] %}
+                                {% if loan.remaining > 0 %}
+                                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payModal{{ loan.id }}">
+                                        💵 سداد قسط
+                                    </button>
+                                {% endif %}
+                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editLoanModal{{ loan.id }}">
+                                    ✏️ تعديل
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteLoanModal{{ loan.id }}">
+                                    🗑️ حذف
+                                </button>
+                            {% else %}
+                                <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                     </tr>
 
                     <!-- Modal سداد قسط -->
-                    {% if loan.remaining > 0 %}
+                    {% if loan.remaining > 0 and session.role in ['admin', 'root'] %}
                     <div class="modal fade" id="payModal{{ loan.id }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog">
                             <div class="modal-content">
@@ -96,6 +108,68 @@
                         </div>
                     </div>
                     {% endif %}
+
+                    <!-- Modal تعديل -->
+                    <div class="modal fade" id="editLoanModal{{ loan.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">تعديل القرض #{{ loan.id }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ url_for('edit_bank_loan', lid=loan.id) }}" method="POST">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">المبلغ الإجمالي</label>
+                                            <input type="number" step="0.01" class="form-control" name="total_amount" value="{{ loan.total_amount }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">القسط الشهري</label>
+                                            <input type="number" step="0.01" class="form-control" name="monthly_installment" value="{{ loan.monthly_installment }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">الحساب البنكي</label>
+                                            <select class="form-select" name="account_id" required>
+                                                <option value="">اختر الحساب...</option>
+                                                {% for account in accounts %}
+                                                <option value="{{ account.id }}" {% if loan.account_id == account.id %}selected{% endif %}>{{ account.bank_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">الوصف</label>
+                                            <input type="text" class="form-control" name="description" value="{{ loan.description or '' }}">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-warning">حفظ التعديلات</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal حذف -->
+                    <div class="modal fade" id="deleteLoanModal{{ loan.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">حذف القرض #{{ loan.id }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>هل أنت متأكد من حذف هذا القرض؟</p>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                    <form action="{{ url_for('delete_bank_loan', lid=loan.id) }}" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-danger">حذف</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     {% endfor %}
                 </tbody>
             </table>
