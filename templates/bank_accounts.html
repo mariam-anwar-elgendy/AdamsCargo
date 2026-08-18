@@ -4,9 +4,11 @@
 <div class="row mb-4">
     <div class="col-12 d-flex justify-content-between align-items-center">
         <h2>🏦 الحسابات البنكية</h2>
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
-            ➕ إضافة حساب بنكي
-        </button>
+        {% if session.role in ['admin', 'root'] %}
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                ➕ إضافة حساب بنكي
+            </button>
+        {% endif %}
     </div>
 </div>
 
@@ -46,12 +48,16 @@
                         <td>{{ account.current_balance }}</td>
                         <td>{{ account.notes or '-' }}</td>
                         <td>
-                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal{{ account.id }}">
-                                ✏️ تعديل
-                            </button>
-                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ account.id }}">
-                                🗑️ حذف
-                            </button>
+                            {% if session.role in ['admin', 'root'] %}
+                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal{{ account.id }}">
+                                    ✏️ تعديل
+                                </button>
+                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ account.id }}">
+                                    🗑️ حذف
+                                </button>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                     </tr>
 
