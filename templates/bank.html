@@ -94,6 +94,7 @@
                         <th>النوع</th>
                         <th>المبلغ</th>
                         <th>الوصف</th>
+                        <th>إجراءات</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -112,6 +113,14 @@
                         </td>
                         <td>{{ txn.amount }}</td>
                         <td>{{ txn.description or '-' }}</td>
+                        <td>
+                            {% if session.role in ['admin', 'root'] %}
+                                <a href="#" class="btn btn-sm btn-warning">✏️ تعديل</a>
+                                <button class="btn btn-sm btn-danger" onclick="if(confirm('هل أنت متأكد من الحذف؟')) fetch('/api/bank/transactions/{{ txn.id }}/delete', {method:'POST'}).then(()=>location.reload())">🗑️ حذف</button>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
