@@ -9,6 +9,7 @@ from functools import wraps
 from flask import (Flask, render_template, request, redirect, url_for,
                    jsonify, send_file, session, flash)
 from flask_sqlalchemy import SQLAlchemy
+from flask_session import Session
 from werkzeug.security import generate_password_hash, check_password_hash
 import pandas as pd
 from pydrive.auth import GoogleAuth
@@ -19,11 +20,22 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
 
-# إعدادات الجلسة
+# ==================== SESSION CONFIGURATION ====================
+# إعدادات Flask-Session
+app.config['SESSION_TYPE'] = 'filesystem'
+app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
+app.config['SESSION_PERMANENT'] = True
+app.config['SESSION_USE_SIGNER'] = True
+app.config['SESSION_KEY_PREFIX'] = 'adam_cargo_'
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
+# إعدادات الكوكيز
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_SECURE'] = False
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
+# تهيئة Flask-Session
+Session(app)
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -363,16 +375,24 @@ def login():
         p = request.form.get('password','')
         user = User.query.filter_by(username=u, active=True).first()
         if user and user.check_password(p):
-            session.clear()  # مسح أي جلسة قديمة
+            # مسح الجلسة القديمة
+            session.clear()
+            # تعيين البيانات
             session['user_id'] = user.id
             session['username'] = user.username
             session['full_name'] = user.full_name
             session['role'] = user.role
             session.permanent = True
             flash(f'مرحباً {user.full_name}!','success')
-            return redirect(url_for('dashboard'))  # استخدمي redirect
+            
+            # إضافة debug
+            print(f"DEBUG: Session data: {dict(session)}")
+            print(f"DEBUG: User ID in session: {session.get('user_id')}")
+            
+            return redirect(url_for('dashboard'))
         flash('خطأ في الدخول','danger')
     return render_template('login.html')
+
 @app.route('/logout')
 def logout():
     session.clear()
@@ -384,6 +404,7 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    print(f"DEBUG: Dashboard accessed. Session: {dict(session)}")  # للتتبع
     return render_template('dashboard.html', **get_dashboard_context())
 
 # ==================== ADMIN & USER MANAGEMENT ====================
