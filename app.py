@@ -19,6 +19,7 @@ app = Flask(__name__, template_folder='templates', static_folder='static')
 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'shipping-company-secret-key-2024')
 
+# === إعدادات الجلسة (Session Config) ===
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
@@ -966,6 +967,29 @@ def add_bank_loan():
     flash('تمت إضافة القرض','success')
     return redirect(url_for('bank_loans'))
 
+@app.route('/bank/loans/<int:lid>/edit', methods=['POST'])
+@admin_required
+def edit_bank_loan(lid):
+    loan = BankLoan.query.get_or_404(lid)
+    loan.total_amount = float(request.form.get('total_amount', loan.total_amount) or 0)
+    loan.monthly_installment = float(request.form.get('monthly_installment', loan.monthly_installment) or 0)
+    loan.description = request.form.get('description', '')
+    account_id = request.form.get('account_id')
+    if account_id:
+        loan.account_id = account_id
+    db.session.commit()
+    flash('تم تعديل القرض بنجاح','success')
+    return redirect(url_for('bank_loans'))
+
+@app.route('/bank/loans/<int:lid>/delete', methods=['POST'])
+@admin_required
+def delete_bank_loan(lid):
+    loan = BankLoan.query.get_or_404(lid)
+    db.session.delete(loan)
+    db.session.commit()
+    flash('تم حذف القرض بنجاح','success')
+    return redirect(url_for('bank_loans'))
+
 @app.route('/bank/loans/<int:lid>/pay', methods=['POST'])
 @admin_required
 def pay_loan_installment(lid):
@@ -1061,7 +1085,7 @@ def export_daily_report(rd):
                         'أجرة السائق':t.driver_pay,'الصافي':t.net_profit} for t in tr])
     if not df.empty:
         tot = {'التاريخ':'الإجمالي','العربية':'','السائق':'','العميل':'','من':'','إلى':''}
-        for col in ['النولون','السولар','المصاريف','أجرة السائق','الصافي']:
+        for col in ['النولون','السولار','المصاريف','أجرة السائق','الصافي']:
             tot[col] = df[col].sum()
         df.loc['الإجمالي'] = tot
     fn = f'trips_report_{rd}.xlsx'
