@@ -81,8 +81,11 @@ class Car(db.Model):
     __tablename__ = 'cars'
     id = db.Column(db.Integer, primary_key=True)
     plate_number = db.Column(db.String(20), unique=True, nullable=False)
-    bank_installment = db.Column(db.Float, default=0)
-    remaining_bank = db.Column(db.Float, default=0)
+    purchase_price = db.Column(db.Float, default=0)  # سعر العربية
+    down_payment = db.Column(db.Float, default=0)    # المقدم
+    bank_installment = db.Column(db.Float, default=0) # القسط الشهري
+    remaining_bank = db.Column(db.Float, default=0)   # المتبقي
+    total_paid = db.Column(db.Float, default=0)       # إجمالي المدفوع
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
@@ -297,7 +300,7 @@ def backup_database():
                 pd.DataFrame([{'الاسم':c.name,'التليفون':c.phone} for c in cust]).to_excel(w,sheet_name='العملاء',index=False)
             cars = Car.query.order_by(Car.plate_number.asc()).all()
             if cars:
-                pd.DataFrame([{'اللوحة':c.plate_number,'قسط البنك':c.bank_installment,'المتبقي':c.remaining_bank} for c in cars]).to_excel(w,sheet_name='العربيات',index=False)
+                pd.DataFrame([{'اللوحة':c.plate_number,'سعر العربية':c.purchase_price,'المقدم':c.down_payment,'القسط':c.bank_installment,'المدفوع':c.total_paid,'المتبقي':c.remaining_bank} for c in cars]).to_excel(w,sheet_name='العربيات',index=False)
             pays = Payment.query.order_by(Payment.date.asc()).all()
             if pays:
                 pd.DataFrame([{'التاريخ':str(p.date),'العميل':p.customer.name if p.customer else '','المبلغ':p.amount} for p in pays]).to_excel(w,sheet_name='الدفعات',index=False)
@@ -564,6 +567,36 @@ def add_transaction():
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('financial_transactions'))
 
+@app.route('/api/transactions/<int:tid>/edit', methods=['POST'])
+@admin_required
+def edit_transaction(tid):
+    try:
+        txn = FinancialTransaction.query.get_or_404(tid)
+        txn.person_name = request.form.get('person_name', txn.person_name)
+        txn.amount = float(request.form.get('amount', txn.amount) or 0)
+        txn.type = request.form.get('type', txn.type)
+        txn.description = request.form.get('description', txn.description)
+        txn.date = datetime.strptime(request.form.get('date', str(txn.date)), '%Y-%m-%d').date()
+        db.session.commit()
+        flash('تم تعديل المعاملة بنجاح','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
+    return redirect(url_for('financial_transactions'))
+
+@app.route('/api/transactions/<int:tid>/delete', methods=['POST'])
+@admin_required
+def delete_transaction(tid):
+    try:
+        txn = FinancialTransaction.query.get_or_404(tid)
+        db.session.delete(txn)
+        db.session.commit()
+        flash('تم حذف المعاملة بنجاح','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
+    return redirect(url_for('financial_transactions'))
+
 # ==================== TRIPS ====================
 @app.route('/trips/add', methods=['GET','POST'])
 @login_required
@@ -747,30 +780,77 @@ def car_report(cid):
         insts = Installment.query.filter_by(car_id=cid).order_by(Installment.due_date.asc()).all()
     except:
         insts = []
+    bank_accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
     return render_template('car_report.html', car=c, trips=tr, trip_count=len(tr),
                            total_nauloon=sum(t.nauloon for t in tr),
                            total_solar=sum(t.solar for t in tr),
                            total_expenses=sum(t.expenses for t in tr),
                            total_driver_pay=sum(t.driver_pay for t in tr),
                            total_net=sum(t.net_profit for t in tr),
-                           drivers=drivers, installments=insts)
+                           drivers=drivers, installments=insts, bank_accounts=bank_accounts)
 
 @app.route('/api/cars/add', methods=['POST'])
 @admin_required
 def add_car():
-    plate = request.form.get('plate_number', '').strip()
-    if Car.query.filter_by(plate_number=plate).first():
-        flash('رقم اللوحة موجود بالفعل','danger')
-        return redirect(url_for('cars'))
-    car = Car(
-        plate_number=plate,
-        bank_installment=float(request.form.get('bank_installment', 0) or 0),
-        remaining_bank=float(request.form.get('remaining_bank', 0) or 0),
-        notes=request.form.get('notes', '')
-    )
-    db.session.add(car)
-    db.session.commit()
-    flash('تم إضافة العربية بنجاح','success')
+    try:
+        plate = request.form.get('plate_number', '').strip()
+        if Car.query.filter_by(plate_number=plate).first():
+            flash('رقم اللوحة موجود بالفعل','danger')
+            return redirect(url_for('cars'))
+        
+        purchase_price = float(request.form.get('purchase_price', 0) or 0)
+        down_payment = float(request.form.get('down_payment', 0) or 0)
+        remaining = purchase_price - down_payment
+        
+        car = Car(
+            plate_number=plate,
+            purchase_price=purchase_price,
+            down_payment=down_payment,
+            bank_installment=float(request.form.get('bank_installment', 0) or 0),
+            remaining_bank=remaining,
+            total_paid=down_payment,
+            notes=request.form.get('notes', '')
+        )
+        db.session.add(car)
+        db.session.commit()
+        flash('تم إضافة العربية بنجاح','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
+    return redirect(url_for('cars'))
+
+@app.route('/api/cars/<int:cid>/edit', methods=['POST'])
+@admin_required
+def edit_car(cid):
+    try:
+        car = Car.query.get_or_404(cid)
+        car.plate_number = request.form.get('plate_number', car.plate_number).strip()
+        car.purchase_price = float(request.form.get('purchase_price', car.purchase_price) or 0)
+        car.down_payment = float(request.form.get('down_payment', car.down_payment) or 0)
+        car.bank_installment = float(request.form.get('bank_installment', car.bank_installment) or 0)
+        car.remaining_bank = float(request.form.get('remaining_bank', car.remaining_bank) or 0)
+        car.total_paid = float(request.form.get('total_paid', car.total_paid) or 0)
+        car.notes = request.form.get('notes', car.notes)
+        db.session.commit()
+        flash('تم تعديل العربية بنجاح','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
+    return redirect(url_for('cars'))
+
+@app.route('/api/cars/<int:cid>/delete', methods=['POST'])
+@admin_required
+def delete_car(cid):
+    try:
+        c = Car.query.get_or_404(cid)
+        Trip.query.filter_by(car_id=cid).delete()
+        Installment.query.filter_by(car_id=cid).delete()
+        db.session.delete(c)
+        db.session.commit()
+        flash('تم الحذف','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('cars'))
 
 @app.route('/api/installments/add', methods=['POST'])
@@ -827,22 +907,29 @@ def add_installment():
 def edit_installment(iid):
     try:
         inst = Installment.query.get_or_404(iid)
+        old_amount = inst.amount
         inst.amount = float(request.form.get('amount', inst.amount) or 0)
         inst.due_date = datetime.strptime(request.form.get('due_date', str(inst.due_date)), '%Y-%m-%d').date()
         inst.notes = request.form.get('notes', '')
+        
+        car = Car.query.get(inst.car_id)
+        if car:
+            car.remaining_bank = car.remaining_bank - old_amount + inst.amount
+        
         db.session.commit()
         flash('تم تعديل القسط بنجاح','success')
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
-    return redirect(url_for('cars'))
+    return redirect(url_for('car_report', cid=inst.car_id))
 
 @app.route('/api/installments/<int:iid>/delete', methods=['POST'])
 @admin_required
 def delete_installment(iid):
     try:
         inst = Installment.query.get_or_404(iid)
-        car = Car.query.get(inst.car_id)
+        car_id = inst.car_id
+        car = Car.query.get(car_id)
         if car and not inst.paid:
             car.remaining_bank -= inst.amount
         db.session.delete(inst)
@@ -851,7 +938,7 @@ def delete_installment(iid):
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
-    return redirect(url_for('cars'))
+    return redirect(url_for('car_report', cid=car_id))
 
 @app.route('/api/installments/<int:iid>/pay', methods=['POST'])
 @admin_required
@@ -863,6 +950,9 @@ def pay_installment(iid):
         car = Car.query.get(inst.car_id)
         if car:
             car.remaining_bank -= inst.amount
+            car.total_paid += inst.amount
+            if car.remaining_bank <= 0:
+                car.remaining_bank = 0
         account_id = request.form.get('account_id')
         if account_id:
             account = BankAccount.query.get(account_id)
@@ -877,28 +967,13 @@ def pay_installment(iid):
                     created_by=session['user_id']
                 ))
         db.session.commit()
-        flash('تم دفع القسط وسحبه من البنك','success')
+        flash('تم دفع القسط بنجاح','success')
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
-    return redirect(url_for('cars'))
+    return redirect(url_for('car_report', cid=inst.car_id))
 
-@app.route('/api/cars/<int:cid>/delete', methods=['POST'])
-@admin_required
-def delete_car(cid):
-    try:
-        c = Car.query.get_or_404(cid)
-        Trip.query.filter_by(car_id=cid).delete()
-        Installment.query.filter_by(car_id=cid).delete()
-        db.session.delete(c)
-        db.session.commit()
-        flash('تم الحذف','success')
-    except Exception as e:
-        db.session.rollback()
-        flash(f'حدث خطأ: {str(e)}','danger')
-    return redirect(url_for('cars'))
-
-# ==================== BANK ACCOUNTS (ADMIN & ROOT) ====================
+# ==================== BANK ACCOUNTS ====================
 @app.route('/bank/accounts')
 @admin_required
 def bank_accounts():
@@ -939,6 +1014,28 @@ def edit_bank_account(aid):
         account.notes = request.form.get('notes', account.notes)
         db.session.commit()
         flash('تم تحديث الحساب','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
+    return redirect(url_for('bank_accounts'))
+
+@app.route('/api/bank/accounts/<int:aid>/deposit', methods=['POST'])
+@admin_required
+def deposit_bank_account(aid):
+    try:
+        account = BankAccount.query.get_or_404(aid)
+        amount = float(request.form.get('amount', 0) or 0)
+        account.current_balance += amount
+        db.session.add(BankTransaction(
+            date=datetime.strptime(request.form.get('date', str(date.today())), '%Y-%m-%d').date(),
+            type='deposit',
+            amount=amount,
+            description=request.form.get('description', 'إيداع مبلغ'),
+            account_id=aid,
+            created_by=session['user_id']
+        ))
+        db.session.commit()
+        flash(f'تم إيداع {amount} في {account.bank_name}','success')
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
@@ -1015,7 +1112,7 @@ def add_bank_transaction():
 def bank_loans():
     loans = BankLoan.query.order_by(BankLoan.start_date.asc()).all()
     accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
-    return render_template('bank_loans.html', loans=loans, accounts=accounts)
+    return render_template('bank_loans.html', loans=loans, accounts=accounts, date=date)
 
 @app.route('/bank/loans/add', methods=['POST'])
 @admin_required
@@ -1274,7 +1371,18 @@ def init_db():
     with app.app_context():
         db.create_all()
         
-        # تحديث جدول installments - إضافة الأعمدة الناقصة تلقائياً
+        # تحديث جدول cars - إضافة الأعمدة الجديدة
+        try:
+            db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS purchase_price FLOAT DEFAULT 0'))
+            db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS down_payment FLOAT DEFAULT 0'))
+            db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS total_paid FLOAT DEFAULT 0'))
+            db.session.commit()
+            print("✅ تم تحديث جدول cars بنجاح")
+        except Exception as e:
+            print(f"⚠️ خطأ في تحديث جدول cars: {e}")
+            db.session.rollback()
+        
+        # تحديث جدول installments
         try:
             db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT \'\''))
             db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS paid BOOLEAN DEFAULT false'))
