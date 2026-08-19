@@ -81,11 +81,11 @@ class Car(db.Model):
     __tablename__ = 'cars'
     id = db.Column(db.Integer, primary_key=True)
     plate_number = db.Column(db.String(20), unique=True, nullable=False)
-    purchase_price = db.Column(db.Float, default=0)  # سعر العربية
-    down_payment = db.Column(db.Float, default=0)    # المقدم
-    bank_installment = db.Column(db.Float, default=0) # القسط الشهري
-    remaining_bank = db.Column(db.Float, default=0)   # المتبقي
-    total_paid = db.Column(db.Float, default=0)       # إجمالي المدفوع
+    purchase_price = db.Column(db.Float, default=0)
+    down_payment = db.Column(db.Float, default=0)
+    bank_installment = db.Column(db.Float, default=0)
+    remaining_bank = db.Column(db.Float, default=0)
+    total_paid = db.Column(db.Float, default=0)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
@@ -1057,7 +1057,7 @@ def delete_bank_account(aid):
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('bank_accounts'))
 
-# ==================== BANK (ADMIN) ====================
+# ==================== BANK ====================
 @app.route('/bank')
 @admin_required
 def bank():
@@ -1369,15 +1369,13 @@ def health_check():
 # ==================== INIT ====================
 def init_db():
     with app.app_context():
-        db.create_all()
-        
-        # تحديث جدول cars - إضافة الأعمدة الجديدة
+        # إضافة الأعمدة الجديدة أولاً
         try:
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS purchase_price FLOAT DEFAULT 0'))
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS down_payment FLOAT DEFAULT 0'))
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS total_paid FLOAT DEFAULT 0'))
             db.session.commit()
-            print("✅ تم تحديث جدول cars بنجاح")
+            print("✅ تم إضافة الأعمدة الجديدة لجدول cars")
         except Exception as e:
             print(f"⚠️ خطأ في تحديث جدول cars: {e}")
             db.session.rollback()
@@ -1391,8 +1389,10 @@ def init_db():
             db.session.commit()
             print("✅ تم تحديث جدول installments بنجاح")
         except Exception as e:
-            print(f"⚠️ خطأ في تحديث الجدول: {e}")
+            print(f"⚠️ خطأ في تحديث جدول installments: {e}")
             db.session.rollback()
+        
+        db.create_all()
 
         if not User.query.filter_by(username='admin').first():
             a = User(username='admin', full_name='مدير النظام', role='admin')
