@@ -37,7 +37,7 @@
         <div class="card bg-danger text-white shadow-sm">
             <div class="card-body text-center">
                 <h5 class="card-title">⏳ المتبقي</h5>
-                <h3>{{ land.total_loan_amount - land.total_paid }}</h3>
+                <h3>{{ remaining }}</h3>
             </div>
         </div>
     </div>
@@ -89,6 +89,12 @@
             </div>
         </form>
         <p class="text-muted mt-2">⚠️ ملاحظة: مدفوعات الأرض مستقلة تمامًا عن البنك.</p>
+        
+        {% if remaining <= 0 %}
+        <div class="alert alert-success mt-3">
+            ✅ تم تصفية قرض الأرض بالكامل!
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
