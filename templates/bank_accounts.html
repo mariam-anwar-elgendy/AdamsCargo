@@ -2,163 +2,130 @@
 
 {% block content %}
 <div class="row mb-4">
-    <div class="col-12 d-flex justify-content-between align-items-center">
-        <h2>🏦 الحسابات البنكية</h2>
-        {% if session.role in ['admin', 'root'] %}
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
-                ➕ إضافة حساب بنكي
-            </button>
-        {% endif %}
+    <div class="col-12">
+        <h2>📊 البنك</h2>
     </div>
 </div>
 
 <!-- ملخص -->
 <div class="row mb-4">
-    <div class="col-12">
+    <div class="col-md-4 mb-3">
         <div class="card bg-primary text-white shadow-sm">
             <div class="card-body text-center">
-                <h5 class="card-title">💰 إجمالي الأرصدة</h5>
+                <h5 class="card-title">💰 إجمالي رصيد الحسابات</h5>
                 <h3>{{ total_balance }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-warning text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💳 المتبقي على القروض</h5>
+                <h3>{{ total_loan_remaining }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4 mb-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">🏦 عدد الحسابات</h5>
+                <h3>{{ accounts|length }}</h3>
             </div>
         </div>
     </div>
 </div>
 
-<!-- جدول الحسابات -->
+<!-- إضافة معاملة بنكية -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">➕ إضافة معاملة بنكية</h5>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('add_bank_transaction') }}">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">التاريخ</label>
+                    <input type="date" class="form-control" name="date" required value="{{ date }}">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">الحساب البنكي</label>
+                    <select class="form-select" name="account_id" required>
+                        <option value="">اختر الحساب...</option>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}">{{ account.bank_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">النوع</label>
+                    <select class="form-select" name="type" required>
+                        <option value="deposit">إيداع</option>
+                        <option value="withdraw">سحب</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">المبلغ</label>
+                    <input type="number" step="0.01" class="form-control" name="amount" required>
+                </div>
+                <div class="col-md-2 mb-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">إضافة</button>
+                </div>
+                <div class="col-md-12 mb-3">
+                    <label class="form-label">الوصف</label>
+                    <input type="text" class="form-control" name="description">
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- جدول المعاملات البنكية -->
 <div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">📋 المعاملات البنكية</h5>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
                 <thead>
                     <tr>
-                        <th>#</th>
-                        <th>اسم البنك</th>
-                        <th>رقم الحساب</th>
-                        <th>الرصيد الحالي</th>
-                        <th>ملاحظات</th>
+                        <th>التاريخ</th>
+                        <th>الحساب</th>
+                        <th>النوع</th>
+                        <th>المبلغ</th>
+                        <th>الوصف</th>
                         <th>إجراءات</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for account in accounts %}
+                    {% for txn in recent_transactions %}
                     <tr>
-                        <td>{{ loop.index }}</td>
-                        <td>{{ account.bank_name }}</td>
-                        <td>{{ account.account_number or '-' }}</td>
-                        <td>{{ account.current_balance }}</td>
-                        <td>{{ account.notes or '-' }}</td>
+                        <td>{{ txn.date }}</td>
+                        <td>{{ txn.account.bank_name if txn.account else '-' }}</td>
+                        <td>
+                            {% if txn.type == 'deposit' %}
+                                <span class="badge bg-success">إيداع</span>
+                            {% elif txn.type == 'withdraw' %}
+                                <span class="badge bg-danger">سحب</span>
+                            {% else %}
+                                <span class="badge bg-info">{{ txn.type }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ txn.amount }}</td>
+                        <td>{{ txn.description or '-' }}</td>
                         <td>
                             {% if session.role in ['admin', 'root'] %}
-                                <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editModal{{ account.id }}">
-                                    ✏️ تعديل
-                                </button>
-                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ account.id }}">
-                                    🗑️ حذف
-                                </button>
+                                <form action="{{ url_for('delete_bank_transaction', tid=txn.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه المعاملة؟');">
+                                    <button type="submit" class="btn btn-sm btn-danger">🗑️ حذف</button>
+                                </form>
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                     </tr>
-
-                    <!-- Modal تعديل -->
-                    <div class="modal fade" id="editModal{{ account.id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">تعديل الحساب - {{ account.bank_name }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <form action="{{ url_for('edit_bank_account', aid=account.id) }}" method="POST">
-                                    <div class="modal-body">
-                                        <div class="mb-3">
-                                            <label class="form-label">اسم البنك</label>
-                                            <input type="text" class="form-control" name="bank_name" value="{{ account.bank_name }}" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">رقم الحساب</label>
-                                            <input type="text" class="form-control" name="account_number" value="{{ account.account_number or '' }}">
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">الرصيد الحالي</label>
-                                            <input type="number" step="0.01" class="form-control" name="current_balance" value="{{ account.current_balance }}" required>
-                                        </div>
-                                        <div class="mb-3">
-                                            <label class="form-label">ملاحظات</label>
-                                            <textarea class="form-control" name="notes" rows="2">{{ account.notes or '' }}</textarea>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                        <button type="submit" class="btn btn-warning">حفظ التعديلات</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Modal حذف -->
-                    <div class="modal fade" id="deleteModal{{ account.id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">حذف الحساب - {{ account.bank_name }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>هل أنت متأكد من حذف هذا الحساب؟</p>
-                                    {% if account.transactions %}
-                                    <p class="text-danger">⚠️ لا يمكن الحذف لوجود معاملات مرتبطة بهذا الحساب!</p>
-                                    {% endif %}
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                    <form action="{{ url_for('delete_bank_account', aid=account.id) }}" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-danger" {% if account.transactions %}disabled{% endif %}>حذف</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
-    </div>
-</div>
-
-<!-- Modal إضافة حساب -->
-<div class="modal fade" id="addAccountModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">إضافة حساب بنكي جديد</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('add_bank_account') }}" method="POST">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">اسم البنك</label>
-                        <input type="text" class="form-control" name="bank_name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">رقم الحساب</label>
-                        <input type="text" class="form-control" name="account_number">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">الرصيد الافتتاحي</label>
-                        <input type="number" step="0.01" class="form-control" name="current_balance" value="0" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">ملاحظات</label>
-                        <textarea class="form-control" name="notes" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">إضافة</button>
-                </div>
-            </form>
         </div>
     </div>
 </div>
