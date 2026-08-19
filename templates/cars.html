@@ -42,12 +42,59 @@
                         <td>
                             <a href="{{ url_for('car_report', cid=car.id) }}" class="btn btn-sm btn-info">📊 تقرير</a>
                             {% if session.role in ['admin', 'root'] %}
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addInstallmentModal{{ car.id }}">
+                                ➕ قسط
+                            </button>
                             <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ car.id }}">
                                 🗑️ حذف
                             </button>
                             {% endif %}
                         </td>
                     </tr>
+
+                    <!-- Modal إضافة قسط -->
+                    {% if session.role in ['admin', 'root'] %}
+                    <div class="modal fade" id="addInstallmentModal{{ car.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">إضافة قسط - {{ car.plate_number }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ url_for('add_installment') }}" method="POST">
+                                    <input type="hidden" name="car_id" value="{{ car.id }}">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">تاريخ الاستحقاق</label>
+                                            <input type="date" class="form-control" name="due_date" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">المبلغ</label>
+                                            <input type="number" step="0.01" class="form-control" name="amount" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">الحساب البنكي</label>
+                                            <select class="form-select" name="account_id">
+                                                <option value="">اختر الحساب...</option>
+                                                {% for account in bank_accounts %}
+                                                <option value="{{ account.id }}">{{ account.bank_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">ملاحظات</label>
+                                            <input type="text" class="form-control" name="notes">
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-success">إضافة القسط</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <!-- Modal حذف -->
                     {% if session.role in ['admin', 'root'] %}
