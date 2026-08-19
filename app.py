@@ -498,9 +498,13 @@ def pay_land():
             flash('يجب إدخال بيانات الأرض أولاً','danger')
             return redirect(url_for('land_loan'))
         amt = float(request.form.get('amount', 0))
+        remaining = land.total_loan_amount - land.total_paid
+        if amt > remaining:
+            flash(f'المبلغ أكبر من المتبقي! المتبقي: {remaining}','danger')
+            return redirect(url_for('land_loan'))
         land.total_paid += amt
         db.session.commit()
-        flash(f'تم دفع {amt} للأرض','success')
+        flash(f'تم دفع {amt} للأرض. المتبقي: {remaining - amt}','success')
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
@@ -1109,6 +1113,24 @@ def add_bank_transaction():
         ))
         db.session.commit()
         flash('تمت الإضافة','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
+    return redirect(url_for('bank'))
+
+@app.route('/api/bank/transactions/<int:tid>/delete', methods=['POST'])
+@admin_required
+def delete_bank_transaction(tid):
+    try:
+        txn = BankTransaction.query.get_or_404(tid)
+        if txn.account:
+            if txn.type == 'deposit':
+                txn.account.current_balance -= txn.amount
+            elif txn.type == 'withdraw':
+                txn.account.current_balance += txn.amount
+        db.session.delete(txn)
+        db.session.commit()
+        flash('تم حذف المعاملة البنكية بنجاح','success')
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
