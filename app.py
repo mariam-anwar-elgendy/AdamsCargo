@@ -26,7 +26,7 @@ app.config['SESSION_FILE_DIR'] = '/tmp/flask_session'
 app.config['SESSION_PERMANENT'] = True
 app.config['SESSION_USE_SIGNER'] = True
 app.config['SESSION_KEY_PREFIX'] = 'adam_cargo_'
-app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=365)
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
 
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -468,33 +468,42 @@ def land_loan():
         land = LandLoan(land_price=0, total_loan_amount=0, total_paid=0)
         db.session.add(land)
         db.session.commit()
-    return render_template('land_loan.html', land=land)
+    remaining = land.total_loan_amount - land.total_paid
+    return render_template('land_loan.html', land=land, remaining=remaining)
 
 @app.route('/api/land/update', methods=['POST'])
 @root_required
 def update_land():
-    land = LandLoan.query.first()
-    if not land:
-        land = LandLoan()
-        db.session.add(land)
-    land.land_price = float(request.form.get('land_price', 0))
-    land.total_loan_amount = float(request.form.get('total_loan_amount', 0))
-    land.notes = request.form.get('notes', '')
-    db.session.commit()
-    flash('تم تحديث بيانات الأرض','success')
+    try:
+        land = LandLoan.query.first()
+        if not land:
+            land = LandLoan()
+            db.session.add(land)
+        land.land_price = float(request.form.get('land_price', 0))
+        land.total_loan_amount = float(request.form.get('total_loan_amount', 0))
+        land.notes = request.form.get('notes', '')
+        db.session.commit()
+        flash('تم تحديث بيانات الأرض','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('land_loan'))
 
 @app.route('/api/land/pay', methods=['POST'])
 @root_required
 def pay_land():
-    land = LandLoan.query.first()
-    if not land:
-        flash('يجب إدخال بيانات الأرض أولاً','danger')
-        return redirect(url_for('land_loan'))
-    amt = float(request.form.get('amount', 0))
-    land.total_paid += amt
-    db.session.commit()
-    flash(f'تم دفع {amt} للأرض (مستقل عن البنك)','success')
+    try:
+        land = LandLoan.query.first()
+        if not land:
+            flash('يجب إدخال بيانات الأرض أولاً','danger')
+            return redirect(url_for('land_loan'))
+        amt = float(request.form.get('amount', 0))
+        land.total_paid += amt
+        db.session.commit()
+        flash(f'تم دفع {amt} للأرض','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('land_loan'))
 
 # ==================== FINANCIAL TRANSACTIONS ====================
@@ -876,8 +885,6 @@ def add_installment():
             amount=amt,
             notes=request.form.get('notes', '')
         )
-        
-        car.remaining_bank += amt
         
         db.session.add(inst)
         db.session.flush()
@@ -1416,10 +1423,7 @@ def init_db():
 
 
 # ==================== تشغيل مباشر ====================
-# مهم: init_db لازم تشتغل أول ما التطبيق يبدأ
 init_db()
-
-# تشغيل المجدول في الخلفية
 threading.Thread(target=scheduler_loop, daemon=True).start()
 print("✅ Scheduler running")
 
