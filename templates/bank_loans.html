@@ -12,7 +12,6 @@
     </div>
 </div>
 
-<!-- جدول القروض -->
 <div class="card shadow-sm">
     <div class="card-body">
         <div class="table-responsive">
@@ -50,23 +49,21 @@
                         <td>
                             {% if session.role in ['admin', 'root'] %}
                                 {% if loan.remaining > 0 %}
-                                    <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payModal{{ loan.id }}">
-                                        💵 سداد قسط
-                                    </button>
+                                <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payModal{{ loan.id }}">
+                                    💵 سداد
+                                </button>
                                 {% endif %}
                                 <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editLoanModal{{ loan.id }}">
                                     ✏️ تعديل
                                 </button>
-                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteLoanModal{{ loan.id }}">
-                                    🗑️ حذف
-                                </button>
-                            {% else %}
-                                <span class="text-muted">-</span>
+                                <form action="{{ url_for('delete_bank_loan', lid=loan.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا القرض؟');">
+                                    <button type="submit" class="btn btn-sm btn-danger">🗑️ حذف</button>
+                                </form>
                             {% endif %}
                         </td>
                     </tr>
 
-                    <!-- Modal سداد قسط -->
+                    <!-- Modal سداد -->
                     {% if loan.remaining > 0 and session.role in ['admin', 'root'] %}
                     <div class="modal fade" id="payModal{{ loan.id }}" tabindex="-1" aria-hidden="true">
                         <div class="modal-dialog">
@@ -146,27 +143,6 @@
                                         <button type="submit" class="btn btn-warning">حفظ التعديلات</button>
                                     </div>
                                 </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Modal حذف -->
-                    <div class="modal fade" id="deleteLoanModal{{ loan.id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">حذف القرض #{{ loan.id }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>هل أنت متأكد من حذف هذا القرض؟</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                    <form action="{{ url_for('delete_bank_loan', lid=loan.id) }}" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-danger">حذف</button>
-                                    </form>
-                                </div>
                             </div>
                         </div>
                     </div>
