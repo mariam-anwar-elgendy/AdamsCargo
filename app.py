@@ -1414,7 +1414,14 @@ def init_db():
             db.session.commit()
             print("✅ تمت إضافة حسابين بنكيين افتراضيين")
 
+
+# ==================== تشغيل مباشر ====================
+# مهم: init_db لازم تشتغل أول ما التطبيق يبدأ
+init_db()
+
+# تشغيل المجدول في الخلفية
+threading.Thread(target=scheduler_loop, daemon=True).start()
+print("✅ Scheduler running")
+
 if __name__ == '__main__':
-    init_db()
-    threading.Thread(target=scheduler_loop, daemon=True).start()
-    print("✅ Scheduler running")
+    app.run(host='0.0.0.0', port=10000)
