@@ -1254,6 +1254,38 @@ def pay_loan_installment(lid):
     return redirect(url_for('bank_loans'))
 
 # ==================== REPORTS ====================
+#======installments_report======
+@app.route('/reports/installments')
+@login_required
+def installments_report():
+    # كل العربيات
+    cars = Car.query.order_by(Car.plate_number.asc()).all()
+    
+    # كل الأقساط
+    all_installments = Installment.query.order_by(Installment.due_date.asc()).all()
+    
+    # إجماليات العربيات
+    total_purchase_price = sum(c.purchase_price for c in cars)
+    total_down_payment = sum(c.down_payment for c in cars)
+    total_paid_all = sum(c.total_paid for c in cars)
+    total_remaining_all = sum(c.remaining_bank for c in cars)
+    
+    # إجمالي الأقساط
+    total_installments_amount = sum(i.amount for i in all_installments)
+    
+    paid_installments = [i for i in all_installments if i.paid]
+    unpaid_installments = [i for i in all_installments if not i.paid]
+    
+    return render_template('installments_report.html',
+                           cars=cars,
+                           installments=all_installments,
+                           paid_installments=paid_installments,
+                           unpaid_installments=unpaid_installments,
+                           total_purchase_price=total_purchase_price,
+                           total_down_payment=total_down_payment,
+                           total_paid_all=total_paid_all,
+                           total_remaining_all=total_remaining_all,
+                           total_installments_amount=total_installments_amount)
 @app.route('/reports/installments')
 @login_required
 def installments_report():
