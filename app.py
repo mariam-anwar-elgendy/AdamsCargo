@@ -1252,6 +1252,81 @@ def pay_loan_installment(lid):
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('bank_loans'))
+  
+  # ==================== CUSTOM DATE RANGE REPORT ====================
+@app.route('/reports/custom')
+@login_required
+def custom_report():
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+    
+    trips = []
+    total_nauloon = 0
+    total_solar = 0
+    total_expenses = 0
+    total_driver_pay = 0
+    total_net = 0
+    
+    if start_date_str and end_date_str:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        
+        trips = Trip.query.filter(Trip.date >= start_date, Trip.date <= end_date).order_by(Trip.date.asc()).all()
+        
+        total_nauloon = sum(t.nauloon for t in trips)
+        total_solar = sum(t.solar for t in trips)
+        total_expenses = sum(t.expenses for t in trips)
+        total_driver_pay = sum(t.driver_pay for t in trips)
+        total_net = sum(t.net_profit for t in trips)
+    
+    return render_template('custom_report.html',
+                           trips=trips,
+                           start_date=start_date_str,
+                           end_date=end_date_str,
+                           total_nauloon=total_nauloon,
+                           total_solar=total_solar,
+                           total_expenses=total_expenses,
+                           total_driver_pay=total_driver_pay,
+                           total_net=total_net)
+
+@app.route('/reports/custom/export')
+@login_required
+def export_custom_report():
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+    
+    if not start_date_str or not end_date_str:
+        flash('يرجى تحديد التاريخين','danger')
+        return redirect(url_for('custom_report'))
+    
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    
+    trips = Trip.query.filter(Trip.date >= start_date, Trip.date <= end_date).order_by(Trip.date.asc()).all()
+    
+    df = pd.DataFrame([{
+        'التاريخ': str(t.date),
+        'العربية': t.car.plate_number if t.car else '',
+        'السائق': t.driver_name,
+        'العميل': t.customer.name if t.customer else '',
+        'من': t.from_location,
+        'إلى': t.to_location,
+        'النولون': t.nauloon,
+        'السولار': t.solar,
+        'المصاريف': t.expenses,
+        'أجرة السائق': t.driver_pay,
+        'الصافي': t.net_profit
+    } for t in trips])
+    
+    if not df.empty:
+        tot = {'التاريخ': 'الإجمالي', 'العربية': '', 'السائق': '', 'العميل': '', 'من': '', 'إلى': ''}
+        for col in ['النولون', 'السولار', 'المصاريف', 'أجرة السائق', 'الصافي']:
+            tot[col] = df[col].sum()
+        df.loc['الإجمالي'] = tot
+    
+    fn = f'trips_report_{start_date_str}_to_{end_date_str}.xlsx'
+    df.to_excel(fn, index=False, engine='openpyxl')
+    return send_file(fn, as_attachment=True)
 
 # ==================== DAILY REPORT ====================
 @app.route('/reports/daily')
