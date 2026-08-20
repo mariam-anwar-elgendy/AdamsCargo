@@ -7,44 +7,103 @@
     </div>
 </div>
 
-<!-- ملخص -->
+<!-- ملخص عام -->
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card bg-primary text-white shadow-sm">
             <div class="card-body text-center">
-                <h5>📊 إجمالي الأقساط</h5>
-                <h3>{{ installments|length }}</h3>
+                <h5>🚗 عدد العربيات</h5>
+                <h3>{{ cars|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>💰 إجمالي أسعار العربيات</h5>
+                <h3>{{ total_purchase_price }}</h3>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card bg-success text-white shadow-sm">
             <div class="card-body text-center">
-                <h5>✅ مدفوع</h5>
-                <h3>{{ paid_installments|length }}</h3>
+                <h5>✅ إجمالي المدفوع</h5>
+                <h3>{{ total_paid_all }}</h3>
             </div>
         </div>
     </div>
     <div class="col-md-3">
         <div class="card bg-danger text-white shadow-sm">
             <div class="card-body text-center">
-                <h5>⏳ غير مدفوع</h5>
-                <h3>{{ unpaid_installments|length }}</h3>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card bg-warning text-white shadow-sm">
-            <div class="card-body text-center">
-                <h5>💰 إجمالي المبالغ</h5>
-                <h3>{{ total_amount }}</h3>
+                <h5>⏳ إجمالي المتبقي</h5>
+                <h3>{{ total_remaining_all }}</h3>
             </div>
         </div>
     </div>
 </div>
 
-<!-- جدول الأقساط -->
+<!-- جدول العربيات -->
 <div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">🚗 ملخص العربيات</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>رقم اللوحة</th>
+                        <th>سعر العربية</th>
+                        <th>المقدم</th>
+                        <th>القسط الشهري</th>
+                        <th>المدفوع</th>
+                        <th>المتبقي</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for car in cars %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><a href="{{ url_for('car_report', cid=car.id) }}">{{ car.plate_number }}</a></td>
+                        <td>{{ car.purchase_price }}</td>
+                        <td>{{ car.down_payment }}</td>
+                        <td>{{ car.bank_installment }}</td>
+                        <td>{{ car.total_paid }}</td>
+                        <td>{{ car.remaining_bank }}</td>
+                        <td>
+                            {% if car.remaining_bank <= 0 %}
+                                <span class="badge bg-success">✅ تم التصفية</span>
+                            {% else %}
+                                <span class="badge bg-warning">⏳ جاري السداد</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="2"><strong>الإجمالي</strong></td>
+                        <td><strong>{{ total_purchase_price }}</strong></td>
+                        <td><strong>{{ total_down_payment }}</strong></td>
+                        <td></td>
+                        <td><strong>{{ total_paid_all }}</strong></td>
+                        <td><strong>{{ total_remaining_all }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- تفاصيل الأقساط -->
+<div class="card shadow-sm mt-4">
+    <div class="card-header bg-warning text-white">
+        <h5 class="mb-0">📅 تفاصيل الأقساط</h5>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -56,6 +115,7 @@
                         <th>المبلغ</th>
                         <th>الحالة</th>
                         <th>تاريخ الدفع</th>
+                        <th>ملاحظات</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -73,13 +133,15 @@
                             {% endif %}
                         </td>
                         <td>{{ inst.payment_date or '-' }}</td>
+                        <td>{{ inst.notes or '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
                 <tfoot>
                     <tr class="table-warning">
                         <td colspan="3"><strong>الإجمالي</strong></td>
-                        <td><strong>{{ total_amount }}</strong></td>
+                        <td><strong>{{ total_installments_amount }}</strong></td>
+                        <td></td>
                         <td></td>
                         <td></td>
                     </tr>
