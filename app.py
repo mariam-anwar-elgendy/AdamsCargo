@@ -1253,7 +1253,7 @@ def pay_loan_installment(lid):
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('bank_loans'))
   
-  # ==================== CUSTOM DATE RANGE REPORT ====================
+# ==================== CUSTOM DATE RANGE REPORT ====================
 @app.route('/reports/custom')
 @login_required
 def custom_report():
@@ -1289,6 +1289,7 @@ def custom_report():
                            total_driver_pay=total_driver_pay,
                            total_net=total_net)
 
+
 @app.route('/reports/custom/export')
 @login_required
 def export_custom_report():
@@ -1304,28 +1305,81 @@ def export_custom_report():
     
     trips = Trip.query.filter(Trip.date >= start_date, Trip.date <= end_date).order_by(Trip.date.asc()).all()
     
-    df = pd.DataFrame([{
-        'التاريخ': str(t.date),
-        'العربية': t.car.plate_number if t.car else '',
-        'السائق': t.driver_name,
-        'العميل': t.customer.name if t.customer else '',
-        'من': t.from_location,
-        'إلى': t.to_location,
-        'النولون': t.nauloon,
-        'السولار': t.solar,
-        'المصاريف': t.expenses,
-        'أجرة السائق': t.driver_pay,
-        'الصافي': t.net_profit
-    } for t in trips])
+    # استيراد docx
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
     
-    if not df.empty:
-        tot = {'التاريخ': 'الإجمالي', 'العربية': '', 'السائق': '', 'العميل': '', 'من': '', 'إلى': ''}
-        for col in ['النولون', 'السولار', 'المصاريف', 'أجرة السائق', 'الصافي']:
-            tot[col] = df[col].sum()
-        df.loc['الإجمالي'] = tot
+    # إنشاء مستند Word
+    doc = Document()
     
-    fn = f'trips_report_{start_date_str}_to_{end_date_str}.xlsx'
-    df.to_excel(fn, index=False, engine='openpyxl')
+    # العنوان الرئيسي
+    title = doc.add_heading('ADAM CARGO', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # اسم الشركة
+    company = doc.add_heading('شركة آدم للشحن والنقل', 1)
+    company.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # عنوان التقرير
+    report_title = doc.add_heading(f'تقرير الرحلات من {start_date_str} إلى {end_date_str}', 2)
+    report_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # رقم التقرير
+    report_number = datetime.now().strftime('%Y%m%d%H%M%S')
+    report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
+    report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    # التاريخ
+    report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
+    report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    
+    doc.add_paragraph('')
+    
+    # ملخص
+    doc.add_heading('ملخص التقرير', 3)
+    doc.add_paragraph(f'عدد الرحلات: {len(trips)}')
+    doc.add_paragraph(f'إجمالي النولون: {sum(t.nauloon for t in trips)}')
+    doc.add_paragraph(f'إجمالي السولار: {sum(t.solar for t in trips)}')
+    doc.add_paragraph(f'إجمالي المصاريف: {sum(t.expenses for t in trips)}')
+    doc.add_paragraph(f'إجمالي أجرة السائق: {sum(t.driver_pay for t in trips)}')
+    doc.add_paragraph(f'إجمالي الصافي: {sum(t.net_profit for t in trips)}')
+    
+    doc.add_paragraph('')
+    
+    # جدول الرحلات
+    doc.add_heading('تفاصيل الرحلات', 3)
+    
+    # إنشاء جدول
+    table = doc.add_table(rows=1, cols=11)
+    table.style = 'Light Shading Accent 1'
+    
+    # رأس الجدول
+    headers = ['#', 'التاريخ', 'العربية', 'السائق', 'العميل', 'من', 'إلى', 'النولون', 'السولار', 'المصاريف', 'الصافي']
+    for i, header in enumerate(headers):
+        cell = table.rows[0].cells[i]
+        cell.text = header
+        cell.paragraphs[0].runs[0].bold = True
+    
+    # بيانات الجدول
+    for idx, trip in enumerate(trips, 1):
+        row = table.add_row().cells
+        row[0].text = str(idx)
+        row[1].text = str(trip.date)
+        row[2].text = trip.car.plate_number if trip.car else '-'
+        row[3].text = trip.driver_name
+        row[4].text = trip.customer.name if trip.customer else '-'
+        row[5].text = trip.from_location or '-'
+        row[6].text = trip.to_location or '-'
+        row[7].text = str(trip.nauloon)
+        row[8].text = str(trip.solar)
+        row[9].text = str(trip.expenses)
+        row[10].text = str(trip.net_profit)
+    
+    # حفظ الملف
+    fn = f'trips_report_{start_date_str}_to_{end_date_str}.docx'
+    doc.save(fn)
+    
     return send_file(fn, as_attachment=True)
 
 # ==================== DAILY REPORT ====================
