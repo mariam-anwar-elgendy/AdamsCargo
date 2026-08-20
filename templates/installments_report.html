@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h2>💳 تقرير أقساط العربيات</h2>
+    </div>
+</div>
+
+<!-- ملخص -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>📊 إجمالي الأقساط</h5>
+                <h3>{{ installments|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>✅ مدفوع</h5>
+                <h3>{{ paid_installments|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>⏳ غير مدفوع</h5>
+                <h3>{{ unpaid_installments|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>💰 إجمالي المبالغ</h5>
+                <h3>{{ total_amount }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- جدول الأقساط -->
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>العربية</th>
+                        <th>تاريخ الاستحقاق</th>
+                        <th>المبلغ</th>
+                        <th>الحالة</th>
+                        <th>تاريخ الدفع</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inst in installments %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ inst.car.plate_number if inst.car else '-' }}</td>
+                        <td>{{ inst.due_date }}</td>
+                        <td>{{ inst.amount }}</td>
+                        <td>
+                            {% if inst.paid %}
+                                <span class="badge bg-success">✅ مدفوع</span>
+                            {% else %}
+                                <span class="badge bg-danger">⏳ غير مدفوع</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ inst.payment_date or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="3"><strong>الإجمالي</strong></td>
+                        <td><strong>{{ total_amount }}</strong></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
