@@ -1252,8 +1252,26 @@ def pay_loan_installment(lid):
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('bank_loans'))
-  
-# ==================== CUSTOM DATE RANGE REPORT ====================
+
+# ==================== REPORTS ====================
+@app.route('/reports/installments')
+@login_required
+def installments_report():
+    all_installments = Installment.query.order_by(Installment.due_date.asc()).all()
+    paid_installments = [i for i in all_installments if i.paid]
+    unpaid_installments = [i for i in all_installments if not i.paid]
+    total_amount = sum(i.amount for i in all_installments)
+    total_paid_amount = sum(i.amount for i in paid_installments)
+    total_unpaid_amount = sum(i.amount for i in unpaid_installments)
+    
+    return render_template('installments_report.html',
+                           installments=all_installments,
+                           paid_installments=paid_installments,
+                           unpaid_installments=unpaid_installments,
+                           total_amount=total_amount,
+                           total_paid_amount=total_paid_amount,
+                           total_unpaid_amount=total_unpaid_amount)
+
 @app.route('/reports/custom')
 @login_required
 def custom_report():
@@ -1289,7 +1307,6 @@ def custom_report():
                            total_driver_pay=total_driver_pay,
                            total_net=total_net)
 
-
 @app.route('/reports/custom/export')
 @login_required
 def export_custom_report():
@@ -1305,38 +1322,30 @@ def export_custom_report():
     
     trips = Trip.query.filter(Trip.date >= start_date, Trip.date <= end_date).order_by(Trip.date.asc()).all()
     
-    # استيراد docx
     from docx import Document
     from docx.shared import Pt, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     
-    # إنشاء مستند Word
     doc = Document()
     
-    # العنوان الرئيسي
     title = doc.add_heading('ADAM CARGO', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # اسم الشركة
     company = doc.add_heading('شركة آدم للشحن والنقل', 1)
     company.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # عنوان التقرير
     report_title = doc.add_heading(f'تقرير الرحلات من {start_date_str} إلى {end_date_str}', 2)
     report_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # رقم التقرير
     report_number = datetime.now().strftime('%Y%m%d%H%M%S')
     report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
     report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # التاريخ
     report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
     report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     doc.add_paragraph('')
     
-    # ملخص
     doc.add_heading('ملخص التقرير', 3)
     doc.add_paragraph(f'عدد الرحلات: {len(trips)}')
     doc.add_paragraph(f'إجمالي النولون: {sum(t.nauloon for t in trips)}')
@@ -1347,21 +1356,17 @@ def export_custom_report():
     
     doc.add_paragraph('')
     
-    # جدول الرحلات
     doc.add_heading('تفاصيل الرحلات', 3)
     
-    # إنشاء جدول
     table = doc.add_table(rows=1, cols=11)
     table.style = 'Light Shading Accent 1'
     
-    # رأس الجدول
     headers = ['#', 'التاريخ', 'العربية', 'السائق', 'العميل', 'من', 'إلى', 'النولون', 'السولار', 'المصاريف', 'الصافي']
     for i, header in enumerate(headers):
         cell = table.rows[0].cells[i]
         cell.text = header
         cell.paragraphs[0].runs[0].bold = True
     
-    # بيانات الجدول
     for idx, trip in enumerate(trips, 1):
         row = table.add_row().cells
         row[0].text = str(idx)
@@ -1376,13 +1381,11 @@ def export_custom_report():
         row[9].text = str(trip.expenses)
         row[10].text = str(trip.net_profit)
     
-    # حفظ الملف
     fn = f'trips_report_{start_date_str}_to_{end_date_str}.docx'
     doc.save(fn)
     
     return send_file(fn, as_attachment=True)
 
-# ==================== DAILY REPORT ====================
 @app.route('/reports/daily')
 @login_required
 def daily_report():
@@ -1527,7 +1530,6 @@ def health_check():
 # ==================== INIT ====================
 def init_db():
     with app.app_context():
-        # إضافة الأعمدة الجديدة أولاً
         try:
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS purchase_price FLOAT DEFAULT 0'))
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS down_payment FLOAT DEFAULT 0'))
@@ -1538,7 +1540,6 @@ def init_db():
             print(f"⚠️ خطأ في تحديث جدول cars: {e}")
             db.session.rollback()
         
-        # تحديث جدول installments
         try:
             db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT \'\''))
             db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS paid BOOLEAN DEFAULT false'))
