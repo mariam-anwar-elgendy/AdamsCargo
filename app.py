@@ -1254,25 +1254,16 @@ def pay_loan_installment(lid):
     return redirect(url_for('bank_loans'))
 
 # ==================== REPORTS ====================
-#======installments_report======
 @app.route('/reports/installments')
 @login_required
 def installments_report():
-    # كل العربيات
     cars = Car.query.order_by(Car.plate_number.asc()).all()
-    
-    # كل الأقساط
     all_installments = Installment.query.order_by(Installment.due_date.asc()).all()
-    
-    # إجماليات العربيات
     total_purchase_price = sum(c.purchase_price for c in cars)
     total_down_payment = sum(c.down_payment for c in cars)
     total_paid_all = sum(c.total_paid for c in cars)
     total_remaining_all = sum(c.remaining_bank for c in cars)
-    
-    # إجمالي الأقساط
     total_installments_amount = sum(i.amount for i in all_installments)
-    
     paid_installments = [i for i in all_installments if i.paid]
     unpaid_installments = [i for i in all_installments if not i.paid]
     
@@ -1286,23 +1277,6 @@ def installments_report():
                            total_paid_all=total_paid_all,
                            total_remaining_all=total_remaining_all,
                            total_installments_amount=total_installments_amount)
-@app.route('/reports/installments')
-@login_required
-def installments_report():
-    all_installments = Installment.query.order_by(Installment.due_date.asc()).all()
-    paid_installments = [i for i in all_installments if i.paid]
-    unpaid_installments = [i for i in all_installments if not i.paid]
-    total_amount = sum(i.amount for i in all_installments)
-    total_paid_amount = sum(i.amount for i in paid_installments)
-    total_unpaid_amount = sum(i.amount for i in unpaid_installments)
-    
-    return render_template('installments_report.html',
-                           installments=all_installments,
-                           paid_installments=paid_installments,
-                           unpaid_installments=unpaid_installments,
-                           total_amount=total_amount,
-                           total_paid_amount=total_paid_amount,
-                           total_unpaid_amount=total_unpaid_amount)
 
 @app.route('/reports/custom')
 @login_required
@@ -1320,9 +1294,7 @@ def custom_report():
     if start_date_str and end_date_str:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
         end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-        
         trips = Trip.query.filter(Trip.date >= start_date, Trip.date <= end_date).order_by(Trip.date.asc()).all()
-        
         total_nauloon = sum(t.nauloon for t in trips)
         total_solar = sum(t.solar for t in trips)
         total_expenses = sum(t.expenses for t in trips)
@@ -1351,7 +1323,6 @@ def export_custom_report():
     
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-    
     trips = Trip.query.filter(Trip.date >= start_date, Trip.date <= end_date).order_by(Trip.date.asc()).all()
     
     from docx import Document
@@ -1359,25 +1330,18 @@ def export_custom_report():
     from docx.enum.text import WD_ALIGN_PARAGRAPH
     
     doc = Document()
-    
     title = doc.add_heading('ADAM CARGO', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     company = doc.add_heading('شركة آدم للشحن والنقل', 1)
     company.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     report_title = doc.add_heading(f'تقرير الرحلات من {start_date_str} إلى {end_date_str}', 2)
     report_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     report_number = datetime.now().strftime('%Y%m%d%H%M%S')
     report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
     report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
     report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     doc.add_paragraph('')
-    
     doc.add_heading('ملخص التقرير', 3)
     doc.add_paragraph(f'عدد الرحلات: {len(trips)}')
     doc.add_paragraph(f'إجمالي النولون: {sum(t.nauloon for t in trips)}')
@@ -1385,20 +1349,15 @@ def export_custom_report():
     doc.add_paragraph(f'إجمالي المصاريف: {sum(t.expenses for t in trips)}')
     doc.add_paragraph(f'إجمالي أجرة السائق: {sum(t.driver_pay for t in trips)}')
     doc.add_paragraph(f'إجمالي الصافي: {sum(t.net_profit for t in trips)}')
-    
     doc.add_paragraph('')
-    
     doc.add_heading('تفاصيل الرحلات', 3)
-    
     table = doc.add_table(rows=1, cols=11)
     table.style = 'Light Shading Accent 1'
-    
     headers = ['#', 'التاريخ', 'العربية', 'السائق', 'العميل', 'من', 'إلى', 'النولون', 'السولار', 'المصاريف', 'الصافي']
     for i, header in enumerate(headers):
         cell = table.rows[0].cells[i]
         cell.text = header
         cell.paragraphs[0].runs[0].bold = True
-    
     for idx, trip in enumerate(trips, 1):
         row = table.add_row().cells
         row[0].text = str(idx)
@@ -1415,7 +1374,6 @@ def export_custom_report():
     
     fn = f'trips_report_{start_date_str}_to_{end_date_str}.docx'
     doc.save(fn)
-    
     return send_file(fn, as_attachment=True)
 
 @app.route('/reports/daily')
