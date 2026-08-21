@@ -773,27 +773,76 @@ def add_installment():
         if not cid:
             flash('يرجى اختيار العربية','danger')
             return redirect(url_for('cars'))
+        
         car = Car.query.get(cid)
         if not car:
             flash('العربية غير موجودة','danger')
             return redirect(url_for('cars'))
+        
         amt = float(request.form.get('amount', 0) or 0)
         account_id = request.form.get('account_id')
-        inst = Installment(car_id=cid, due_date=datetime.strptime(request.form['due_date'],'%Y-%m-%d').date(), amount=amt, notes=request.form.get('notes', ''))
+        
+        # تاريخ الاستحقاق
+        due_date_str = request.form.get('due_date', '')
+        if due_date_str:
+            due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
+        else:
+            due_date = date.today()
+        
+        # تاريخ الدفع (اختياري)
+        payment_date_str = request.form.get('payment_date', '')
+        payment_date = None
+        if payment_date_str:
+            payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date()
+        
+        # تحديد حالة القسط
+        paid = False
+        if payment_date:
+            paid = True
+        
+        inst = Installment(
+            car_id=cid,
+            due_date=due_date,
+            amount=amt,
+            notes=request.form.get('notes', ''),
+            paid=paid,
+            payment_date=payment_date
+        )
+        
         db.session.add(inst)
         db.session.flush()
+        
+        # لو القسط مدفوع، حدث بيانات العربية
+        if paid:
+            car.remaining_bank -= amt
+            car.total_paid += amt
+            if car.remaining_bank <= 0:
+                car.remaining_bank = 0
+        
+        # لو في حساب بنكي، خصم المبلغ
         if account_id:
             account = BankAccount.query.get(account_id)
             if account:
                 account.current_balance -= amt
-                db.session.add(BankTransaction(date=inst.due_date, type='withdraw', amount=amt, description=f'قسط عربية {car.plate_number}', account_id=account_id, created_by=session['user_id']))
+                db.session.add(BankTransaction(
+                    date=payment_date if payment_date else due_date,
+                    type='withdraw',
+                    amount=amt,
+                    description=f'قسط عربية {car.plate_number}',
+                    account_id=account_id,
+                    created_by=session['user_id']
+                ))
+        
         db.session.commit()
-        flash('تم إضافة القسط بنجاح','success')
+        
+        if paid:
+            flash('تم إضافة القسط كمدفوع بنجاح','success')
+        else:
+            flash('تم إضافة القسط بنجاح','success')
     except Exception as e:
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('cars'))
-
 @app.route('/api/installments/<int:iid>/edit', methods=['POST'])
 @admin_required
 def edit_installment(iid):
