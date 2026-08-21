@@ -1,1 +1,348 @@
+{% extends 'base.html' %}
 
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>🚗 تقرير العربية: {{ car.plate_number }}</h2>
+        <a href="{{ url_for('cars') }}" class="btn btn-secondary">رجوع</a>
+    </div>
+</div>
+
+<!-- ملخص العربية -->
+<div class="row mb-4">
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">💵 سعر العربية</h5>
+                <h4>{{ car.purchase_price }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">🏦 المقدم</h5>
+                <h4>{{ car.down_payment }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">✅ المدفوع</h5>
+                <h4>{{ car.total_paid }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 col-sm-6 mb-3">
+        <div class="card {% if car.remaining_bank > 0 %}bg-danger{% else %}bg-success{% endif %} text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5 class="card-title">⏳ المتبقي</h5>
+                <h4>{{ car.remaining_bank }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- عدد الرحلات -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>📦 عدد الرحلات</h5>
+                <h4>{{ trip_count }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>💰 إجمالي النولون</h5>
+                <h4>{{ total_nauloon }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>📈 إجمالي الصافي</h5>
+                <h4>{{ total_net }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>👤 عدد السائقين</h5>
+                <h4>{{ drivers|length }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- الأقساط -->
+{% if session.role in ['admin', 'root'] %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">💳 تقرير سداد الأقساط - تفاصيل كاملة</h5>
+        <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addInstallmentModal">
+            ➕ إضافة قسط
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>تاريخ الاستحقاق</th>
+                        <th>المبلغ</th>
+                        <th>الحالة</th>
+                        <th>تاريخ الدفع</th>
+                        <th>ملاحظات</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for inst in installments %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ inst.due_date }}</td>
+                        <td>{{ inst.amount }}</td>
+                        <td>
+                            {% if inst.paid %}
+                                <span class="badge bg-success">✅ مدفوع</span>
+                            {% else %}
+                                <span class="badge bg-danger">⏳ غير مدفوع</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ inst.payment_date or '-' }}</td>
+                        <td>{{ inst.notes or '-' }}</td>
+                        <td>
+                            {% if not inst.paid %}
+                            <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#payInstallmentModal{{ inst.id }}">
+                                💵 دفع
+                            </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editInstallmentModal{{ inst.id }}">
+                                ✏️ تعديل
+                            </button>
+                            <form action="{{ url_for('delete_installment', iid=inst.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذا القسط؟');">
+                                <button type="submit" class="btn btn-sm btn-danger">🗑️ حذف</button>
+                            </form>
+                        </td>
+                    </tr>
+
+                    <!-- Modal دفع قسط -->
+                    {% if not inst.paid %}
+                    <div class="modal fade" id="payInstallmentModal{{ inst.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">دفع قسط - {{ car.plate_number }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ url_for('pay_installment', iid=inst.id) }}" method="POST">
+                                    <div class="modal-body">
+                                        <p>المبلغ: <strong>{{ inst.amount }}</strong></p>
+                                        <div class="mb-3">
+                                            <label class="form-label">تاريخ الدفع</label>
+                                            <input type="date" class="form-control" name="payment_date" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">الحساب البنكي</label>
+                                            <select class="form-select" name="account_id" required>
+                                                <option value="">اختر الحساب...</option>
+                                                {% for account in bank_accounts %}
+                                                <option value="{{ account.id }}">{{ account.bank_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-success">دفع</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Modal تعديل قسط -->
+                    <div class="modal fade" id="editInstallmentModal{{ inst.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">تعديل القسط #{{ inst.id }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <form action="{{ url_for('edit_installment', iid=inst.id) }}" method="POST">
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">المبلغ</label>
+                                            <input type="number" step="0.01" class="form-control" name="amount" value="{{ inst.amount }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">تاريخ الاستحقاق</label>
+                                            <input type="date" class="form-control" name="due_date" value="{{ inst.due_date }}" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="form-label">ملاحظات</label>
+                                            <textarea class="form-control" name="notes" rows="2">{{ inst.notes or '' }}</textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                        <button type="submit" class="btn btn-warning">حفظ التعديلات</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="2"><strong>إجمالي الأقساط</strong></td>
+                        <td><strong>{{ installments|sum(attribute='amount') }}</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إضافة قسط -->
+<div class="modal fade" id="addInstallmentModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إضافة قسط - {{ car.plate_number }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('add_installment') }}" method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="car_id" value="{{ car.id }}">
+                    <div class="mb-3">
+                        <label class="form-label">تاريخ الاستحقاق</label>
+                        <input type="date" class="form-control" name="due_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">المبلغ</label>
+                        <input type="number" step="0.01" class="form-control" name="amount" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الحساب البنكي</label>
+                        <select class="form-select" name="account_id" required>
+                            <option value="">اختر الحساب...</option>
+                            {% for account in bank_accounts %}
+                            <option value="{{ account.id }}">{{ account.bank_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">ملاحظات</label>
+                        <input type="text" class="form-control" name="notes">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">إضافة القسط</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- السائقين -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">👤 السائقين</h5>
+    </div>
+    <div class="card-body">
+        {% if drivers %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>اسم السائق</th>
+                        <th>عدد الرحلات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for driver, count in drivers.items() %}
+                    <tr>
+                        <td>{{ driver }}</td>
+                        <td>{{ count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">لا يوجد سائقين</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- الرحلات -->
+<div class="card shadow-sm">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">📦 رحلات العربية</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>التاريخ</th>
+                        <th>السائق</th>
+                        <th>العميل</th>
+                        <th>من</th>
+                        <th>إلى</th>
+                        <th>النولون</th>
+                        <th>السولار</th>
+                        <th>المصاريف</th>
+                        <th>أجرة السائق</th>
+                        <th>الصافي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trip in trips %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ trip.date }}</td>
+                        <td>{{ trip.driver_name }}</td>
+                        <td>{{ trip.customer.name if trip.customer else '-' }}</td>
+                        <td>{{ trip.from_location or '-' }}</td>
+                        <td>{{ trip.to_location or '-' }}</td>
+                        <td>{{ trip.nauloon }}</td>
+                        <td>{{ trip.solar }}</td>
+                        <td>{{ trip.expenses }}</td>
+                        <td>{{ trip.driver_pay }}</td>
+                        <td>{{ trip.net_profit }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="6"><strong>الإجمالي</strong></td>
+                        <td><strong>{{ total_nauloon }}</strong></td>
+                        <td><strong>{{ total_solar }}</strong></td>
+                        <td><strong>{{ total_expenses }}</strong></td>
+                        <td><strong>{{ total_driver_pay }}</strong></td>
+                        <td><strong>{{ total_net }}</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
