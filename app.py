@@ -407,11 +407,7 @@ def add_user():
         if User.query.filter_by(username=un).first():
             flash('اسم المستخدم موجود بالفعل','danger')
             return redirect(url_for('add_user'))
-        u = User(
-            username=un,
-            full_name=request.form.get('full_name','').strip(),
-            role=request.form.get('role','user')
-        )
+        u = User(username=un, full_name=request.form.get('full_name','').strip(), role=request.form.get('role','user'))
         u.set_password(request.form.get('password',''))
         db.session.add(u)
         db.session.commit()
@@ -514,15 +510,7 @@ def add_transaction():
         bank_account_id = request.form.get('bank_account_id') or None
         amount = float(request.form['amount'])
         txn_type = request.form['type']
-        txn = FinancialTransaction(
-            date=datetime.strptime(request.form['date'], '%Y-%m-%d').date(),
-            person_name=request.form['person_name'],
-            amount=amount,
-            type=txn_type,
-            description=request.form.get('description', ''),
-            bank_account_id=bank_account_id if bank_account_id else None,
-            created_by=session['user_id']
-        )
+        txn = FinancialTransaction(date=datetime.strptime(request.form['date'], '%Y-%m-%d').date(), person_name=request.form['person_name'], amount=amount, type=txn_type, description=request.form.get('description', ''), bank_account_id=bank_account_id if bank_account_id else None, created_by=session['user_id'])
         db.session.add(txn)
         db.session.flush()
         if bank_account_id:
@@ -841,6 +829,7 @@ def delete_installment(iid):
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('car_report', cid=car_id))
+
 @app.route('/api/installments/<int:iid>/pay', methods=['POST'])
 @admin_required
 def pay_installment(iid):
@@ -870,6 +859,14 @@ def pay_installment(iid):
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('car_report', cid=inst.car_id))
+
+@app.route('/bank/accounts')
+@admin_required
+def bank_accounts():
+    accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
+    total_balance = sum(a.current_balance for a in accounts)
+    return render_template('bank_accounts.html', accounts=accounts, total_balance=total_balance)
+
 @app.route('/api/bank/accounts/add', methods=['POST'])
 @admin_required
 def add_bank_account():
