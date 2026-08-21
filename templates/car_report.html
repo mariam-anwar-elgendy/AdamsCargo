@@ -13,67 +13,70 @@
     <div class="col-md-3 col-sm-6 mb-3">
         <div class="card bg-primary text-white shadow-sm">
             <div class="card-body text-center">
-                <h5 class="card-title">📦 عدد الرحلات</h5>
-                <h4>{{ trip_count }}</h4>
+                <h5 class="card-title">💵 سعر العربية</h5>
+                <h4>{{ car.purchase_price }}</h4>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6 mb-3">
         <div class="card bg-info text-white shadow-sm">
             <div class="card-body text-center">
-                <h5 class="card-title">💰 إجمالي النولون</h5>
-                <h4>{{ total_nauloon }}</h4>
+                <h5 class="card-title">🏦 المقدم</h5>
+                <h4>{{ car.down_payment }}</h4>
             </div>
         </div>
     </div>
     <div class="col-md-3 col-sm-6 mb-3">
         <div class="card bg-success text-white shadow-sm">
             <div class="card-body text-center">
-                <h5 class="card-title">📈 إجمالي الصافي</h5>
-                <h4>{{ total_net }}</h4>
+                <h5 class="card-title">✅ المدفوع</h5>
+                <h4>{{ car.total_paid }}</h4>
             </div>
         </div>
     </div>
-    {% if session.role in ['admin', 'root'] %}
     <div class="col-md-3 col-sm-6 mb-3">
         <div class="card {% if car.remaining_bank > 0 %}bg-danger{% else %}bg-success{% endif %} text-white shadow-sm">
             <div class="card-body text-center">
-                <h5 class="card-title">⏳ المتبقي على البنك</h5>
+                <h5 class="card-title">⏳ المتبقي</h5>
                 <h4>{{ car.remaining_bank }}</h4>
             </div>
         </div>
     </div>
-    {% endif %}
 </div>
 
-<!-- السائقين -->
-<div class="card shadow-sm mb-4">
-    <div class="card-header bg-info text-white">
-        <h5 class="mb-0">👤 السائقين</h5>
-    </div>
-    <div class="card-body">
-        {% if drivers %}
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>اسم السائق</th>
-                        <th>عدد الرحلات</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for driver, count in drivers.items() %}
-                    <tr>
-                        <td>{{ driver }}</td>
-                        <td>{{ count }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+<!-- عدد الرحلات -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>📦 عدد الرحلات</h5>
+                <h4>{{ trip_count }}</h4>
+            </div>
         </div>
-        {% else %}
-        <p class="text-muted text-center">لا يوجد سائقين</p>
-        {% endif %}
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>💰 إجمالي النولون</h5>
+                <h4>{{ total_nauloon }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>📈 إجمالي الصافي</h5>
+                <h4>{{ total_net }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>👤 عدد السائقين</h5>
+                <h4>{{ drivers|length }}</h4>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -81,7 +84,7 @@
 {% if session.role in ['admin', 'root'] %}
 <div class="card shadow-sm mb-4">
     <div class="card-header bg-warning text-white d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">💳 أقساط العربية</h5>
+        <h5 class="mb-0">💳 تقرير سداد الأقساط - تفاصيل كاملة</h5>
         <button type="button" class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addInstallmentModal">
             ➕ إضافة قسط
         </button>
@@ -143,6 +146,10 @@
                                     <div class="modal-body">
                                         <p>المبلغ: <strong>{{ inst.amount }}</strong></p>
                                         <div class="mb-3">
+                                            <label class="form-label">تاريخ الدفع</label>
+                                            <input type="date" class="form-control" name="payment_date" required>
+                                        </div>
+                                        <div class="mb-3">
                                             <label class="form-label">الحساب البنكي</label>
                                             <select class="form-select" name="account_id" required>
                                                 <option value="">اختر الحساب...</option>
@@ -195,6 +202,16 @@
                     </div>
                     {% endfor %}
                 </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="2"><strong>إجمالي الأقساط</strong></td>
+                        <td><strong>{{ installments|sum(attribute='amount') }}</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
     </div>
@@ -242,6 +259,37 @@
     </div>
 </div>
 {% endif %}
+
+<!-- السائقين -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">👤 السائقين</h5>
+    </div>
+    <div class="card-body">
+        {% if drivers %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>اسم السائق</th>
+                        <th>عدد الرحلات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for driver, count in drivers.items() %}
+                    <tr>
+                        <td>{{ driver }}</td>
+                        <td>{{ count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">لا يوجد سائقين</p>
+        {% endif %}
+    </div>
+</div>
 
 <!-- الرحلات -->
 <div class="card shadow-sm">
