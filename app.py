@@ -841,7 +841,6 @@ def delete_installment(iid):
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('car_report', cid=car_id))
-
 @app.route('/api/installments/<int:iid>/pay', methods=['POST'])
 @admin_required
 def pay_installment(iid):
@@ -871,14 +870,6 @@ def pay_installment(iid):
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('car_report', cid=inst.car_id))
-
-@app.route('/bank/accounts')
-@admin_required
-def bank_accounts():
-    accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
-    total_balance = sum(a.current_balance for a in accounts)
-    return render_template('bank_accounts.html', accounts=accounts, total_balance=total_balance)
-
 @app.route('/api/bank/accounts/add', methods=['POST'])
 @admin_required
 def add_bank_account():
