@@ -1,71 +1,186 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>📊 تقرير العميل: {{ customer.name }}</h2>
-    <a href="{{ url_for('customers') }}" class="btn btn-secondary">رجوع</a>
+<div class="row mb-4">
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>👤 تقرير العميل: {{ customer.name }}</h2>
+        <div>
+            <a href="{{ url_for('customers') }}" class="btn btn-secondary">رجوع</a>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exportModal">
+                📥 تصدير Word
+            </button>
+        </div>
+    </div>
 </div>
 
+<!-- Modal تصدير -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تصدير تقرير العميل - {{ customer.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('export_customer_report', cid=customer.id) }}" method="GET">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">من تاريخ</label>
+                        <input type="date" class="form-control" name="start_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">إلى تاريخ</label>
+                        <input type="date" class="form-control" name="end_date" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">تصدير</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- معلومات العميل -->
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>📞 رقم الهاتف: {{ customer.phone or '-' }}</h5>
+            </div>
+            <div class="col-md-6">
+                <h5>📅 تاريخ الإضافة: {{ customer.date_added }}</h5>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ملخص العميل -->
 <div class="row mb-4">
     <div class="col-md-3">
-        <div class="card bg-light p-3 text-center">
-            <h6>إجمالي النولون</h6>
-            <h4 class="text-primary">{{ total_nauloon }} ج.م</h4>
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>📦 عدد الرحلات</h5>
+                <h3>{{ trips|length }}</h3>
+            </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-light p-3 text-center">
-            <h6>المدفوع</h6>
-            <h4 class="text-success">{{ total_paid }} ج.م</h4>
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>💰 إجمالي النولون</h5>
+                <h3>{{ total_nauloon }}</h3>
+            </div>
         </div>
     </div>
     <div class="col-md-3">
-        <div class="card bg-light p-3 text-center">
-            <h6>المتبقي</h6>
-            <h4 class="text-danger">{{ remaining }} ج.م</h4>
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>✅ المدفوع</h5>
+                <h3>{{ total_paid }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card {% if remaining > 0 %}bg-danger{% else %}bg-success{% endif %} text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>⏳ المتبقي</h5>
+                <h3>{{ remaining }}</h3>
+            </div>
         </div>
     </div>
 </div>
 
-<h5 class="mt-4">📋 الرحلات السابقة</h5>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>التاريخ</th>
-            <th>من</th>
-            <th>إلى</th>
-            <th>النولون</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for trip in trips %}
-        <tr>
-            <td>{{ trip.date }}</td>
-            <td>{{ trip.from_location }}</td>
-            <td>{{ trip.to_location }}</td>
-            <td>{{ trip.nauloon }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!-- جدول الرحلات -->
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">📦 الرحلات</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>التاريخ</th>
+                        <th>العربية</th>
+                        <th>السائق</th>
+                        <th>من</th>
+                        <th>إلى</th>
+                        <th>النولون</th>
+                        <th>السولار</th>
+                        <th>المصاريف</th>
+                        <th>أجرة السائق</th>
+                        <th>الصافي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trip in trips %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ trip.date }}</td>
+                        <td>{{ trip.car.plate_number if trip.car else '-' }}</td>
+                        <td>{{ trip.driver_name }}</td>
+                        <td>{{ trip.from_location or '-' }}</td>
+                        <td>{{ trip.to_location or '-' }}</td>
+                        <td>{{ trip.nauloon }}</td>
+                        <td>{{ trip.solar }}</td>
+                        <td>{{ trip.expenses }}</td>
+                        <td>{{ trip.driver_pay }}</td>
+                        <td>{{ trip.net_profit }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="6"><strong>الإجمالي</strong></td>
+                        <td><strong>{{ total_nauloon }}</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
 
-<h5 class="mt-4">💵 الدفعات السابقة</h5>
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>التاريخ</th>
-            <th>المبلغ</th>
-            <th>ملاحظات</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for pay in payments %}
-        <tr>
-            <td>{{ pay.date }}</td>
-            <td>{{ pay.amount }}</td>
-            <td>{{ pay.notes }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<!-- جدول الدفعات -->
+<div class="card shadow-sm">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0">💵 الدفعات</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>التاريخ</th>
+                        <th>المبلغ</th>
+                        <th>ملاحظات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for payment in payments %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ payment.date }}</td>
+                        <td>{{ payment.amount }}</td>
+                        <td>{{ payment.notes or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="2"><strong>الإجمالي</strong></td>
+                        <td><strong>{{ total_paid }}</strong></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
 {% endblock %}
