@@ -653,16 +653,6 @@ def customers():
         tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==c.id).scalar() or 0
         sm.append({'customer':c,'total_nauloon':tn,'total_paid':tp,'remaining':tn-tp})
     return render_template('customers.html', customers_summary=sm)
-# ==================== CUSTOMERS ====================
-@app.route('/customers')
-@login_required
-def customers():
-    sm = []
-    for c in Customer.query.order_by(Customer.name.asc()).all():
-        tn = db.session.query(db.func.sum(Trip.nauloon)).filter(Trip.customer_id==c.id).scalar() or 0
-        tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==c.id).scalar() or 0
-        sm.append({'customer':c,'total_nauloon':tn,'total_paid':tp,'remaining':tn-tp})
-    return render_template('customers.html', customers_summary=sm)
 
 @app.route('/customers/<int:cid>')
 @login_required
@@ -678,74 +668,46 @@ def customer_report(cid):
 @login_required
 def export_customer_report(cid):
     c = Customer.query.get_or_404(cid)
-    
     start_date_str = request.args.get('start_date', '')
     end_date_str = request.args.get('end_date', '')
-    
     if not start_date_str or not end_date_str:
         flash('يرجى تحديد التاريخين','danger')
         return redirect(url_for('customer_report', cid=cid))
-    
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-    
-    trips = Trip.query.filter(
-        Trip.customer_id == cid,
-        Trip.date >= start_date,
-        Trip.date <= end_date
-    ).order_by(Trip.date.asc()).all()
-    
-    payments = Payment.query.filter(
-        Payment.customer_id == cid,
-        Payment.date >= start_date,
-        Payment.date <= end_date
-    ).order_by(Payment.date.asc()).all()
-    
+    trips = Trip.query.filter(Trip.customer_id == cid, Trip.date >= start_date, Trip.date <= end_date).order_by(Trip.date.asc()).all()
+    payments = Payment.query.filter(Payment.customer_id == cid, Payment.date >= start_date, Payment.date <= end_date).order_by(Payment.date.asc()).all()
     from docx import Document
     from docx.shared import Pt, RGBColor
     from docx.enum.text import WD_ALIGN_PARAGRAPH
-    
     doc = Document()
-    
     title = doc.add_heading('ADAM CARGO', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     company = doc.add_heading('شركة آدم للشحن والنقل', 1)
     company.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     customer_name = doc.add_heading(f'تقرير العميل: {c.name}', 2)
     customer_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     period = doc.add_paragraph(f'من {start_date_str} إلى {end_date_str}')
     period.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     report_number = datetime.now().strftime('%Y%m%d%H%M%S')
     report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
     report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
     report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    
     doc.add_paragraph('')
-    
     doc.add_heading('معلومات العميل', 3)
     doc.add_paragraph(f'اسم العميل: {c.name}')
     doc.add_paragraph(f'رقم الهاتف: {c.phone or "-"}')
-    
     doc.add_paragraph('')
-    
     total_nauloon = sum(t.nauloon for t in trips)
     total_paid = sum(p.amount for p in payments)
     remaining = total_nauloon - total_paid
-    
     doc.add_heading('ملخص الحساب', 3)
     doc.add_paragraph(f'عدد الرحلات: {len(trips)}')
     doc.add_paragraph(f'إجمالي النولون: {total_nauloon}')
     doc.add_paragraph(f'إجمالي المدفوع: {total_paid}')
     doc.add_paragraph(f'المتبقي: {remaining}')
-    
     doc.add_paragraph('')
-    
     if trips:
         doc.add_heading('تفاصيل الرحلات', 3)
         table = doc.add_table(rows=1, cols=8)
@@ -755,7 +717,6 @@ def export_customer_report(cid):
             cell = table.rows[0].cells[i]
             cell.text = header
             cell.paragraphs[0].runs[0].bold = True
-        
         for idx, trip in enumerate(trips, 1):
             row = table.add_row().cells
             row[0].text = str(idx)
@@ -766,9 +727,7 @@ def export_customer_report(cid):
             row[5].text = trip.to_location or '-'
             row[6].text = str(trip.nauloon)
             row[7].text = str(trip.net_profit)
-    
     doc.add_paragraph('')
-    
     if payments:
         doc.add_heading('تفاصيل الدفعات', 3)
         table2 = doc.add_table(rows=1, cols=4)
@@ -778,17 +737,14 @@ def export_customer_report(cid):
             cell = table2.rows[0].cells[i]
             cell.text = header
             cell.paragraphs[0].runs[0].bold = True
-        
         for idx, payment in enumerate(payments, 1):
             row = table2.add_row().cells
             row[0].text = str(idx)
             row[1].text = str(payment.date)
             row[2].text = str(payment.amount)
             row[3].text = payment.notes or '-'
-    
     fn = f'customer_report_{c.name}_{start_date_str}_to_{end_date_str}.docx'
     doc.save(fn)
-    
     return send_file(fn, as_attachment=True)
 
 @app.route('/api/customers/<int:cid>/delete', methods=['POST'])
@@ -801,20 +757,6 @@ def delete_customer(cid):
     db.session.commit()
     flash('تم الحذف','success')
     return redirect(url_for('customers'))
-
-@app.route('/payments/add', methods=['POST'])
-@login_required
-def add_payment():
-    cid = request.form.get('customer_id')
-    tid = request.form.get('trip_id')
-    if not cid:
-        flash('يرجى اختيار العميل','danger')
-        return redirect(request.referrer or url_for('customers'))
-    amt = float(request.form.get('amount', 0) or 0)
-    db.session.add(Payment(date=datetime.strptime(request.form['date'],'%Y-%m-%d').date(), trip_id=tid if tid else None, customer_id=cid, amount=amt, notes=request.form.get('notes','')))
-    db.session.commit()
-    flash('تمت الإضافة','success')
-    return redirect(url_for('customer_report', cid=cid))
 
 @app.route('/payments/add', methods=['POST'])
 @login_required
@@ -914,68 +856,38 @@ def add_installment():
         if not cid:
             flash('يرجى اختيار العربية','danger')
             return redirect(url_for('cars'))
-        
         car = Car.query.get(cid)
         if not car:
             flash('العربية غير موجودة','danger')
             return redirect(url_for('cars'))
-        
         amt = float(request.form.get('amount', 0) or 0)
         account_id = request.form.get('account_id')
-        
-        # تاريخ الاستحقاق
         due_date_str = request.form.get('due_date', '')
         if due_date_str:
             due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date()
         else:
             due_date = date.today()
-        
-        # تاريخ الدفع (اختياري)
         payment_date_str = request.form.get('payment_date', '')
         payment_date = None
         if payment_date_str:
             payment_date = datetime.strptime(payment_date_str, '%Y-%m-%d').date()
-        
-        # تحديد حالة القسط
         paid = False
         if payment_date:
             paid = True
-        
-        inst = Installment(
-            car_id=cid,
-            due_date=due_date,
-            amount=amt,
-            notes=request.form.get('notes', ''),
-            paid=paid,
-            payment_date=payment_date
-        )
-        
+        inst = Installment(car_id=cid, due_date=due_date, amount=amt, notes=request.form.get('notes', ''), paid=paid, payment_date=payment_date)
         db.session.add(inst)
         db.session.flush()
-        
-        # لو القسط مدفوع، حدث بيانات العربية
         if paid:
             car.remaining_bank -= amt
             car.total_paid += amt
             if car.remaining_bank <= 0:
                 car.remaining_bank = 0
-        
-        # لو في حساب بنكي، خصم المبلغ
         if account_id:
             account = BankAccount.query.get(account_id)
             if account:
                 account.current_balance -= amt
-                db.session.add(BankTransaction(
-                    date=payment_date if payment_date else due_date,
-                    type='withdraw',
-                    amount=amt,
-                    description=f'قسط عربية {car.plate_number}',
-                    account_id=account_id,
-                    created_by=session['user_id']
-                ))
-        
+                db.session.add(BankTransaction(date=payment_date if payment_date else due_date, type='withdraw', amount=amt, description=f'قسط عربية {car.plate_number}', account_id=account_id, created_by=session['user_id']))
         db.session.commit()
-        
         if paid:
             flash('تم إضافة القسط كمدفوع بنجاح','success')
         else:
@@ -984,6 +896,7 @@ def add_installment():
         db.session.rollback()
         flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('cars'))
+
 @app.route('/api/installments/<int:iid>/edit', methods=['POST'])
 @admin_required
 def edit_installment(iid):
