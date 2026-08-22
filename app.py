@@ -653,6 +653,27 @@ def customers():
         tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==c.id).scalar() or 0
         sm.append({'customer':c,'total_nauloon':tn,'total_paid':tp,'remaining':tn-tp})
     return render_template('customers.html', customers_summary=sm)
+# ==================== CUSTOMERS ====================
+@app.route('/customers')
+@login_required
+def customers():
+    sm = []
+    for c in Customer.query.order_by(Customer.name.asc()).all():
+        tn = db.session.query(db.func.sum(Trip.nauloon)).filter(Trip.customer_id==c.id).scalar() or 0
+        tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==c.id).scalar() or 0
+        sm.append({'customer':c,'total_nauloon':tn,'total_paid':tp,'remaining':tn-tp})
+    return render_template('customers.html', customers_summary=sm)
+
+@app.route('/customers/<int:cid>')
+@login_required
+def customer_report(cid):
+    c = Customer.query.get_or_404(cid)
+    tr = Trip.query.filter_by(customer_id=cid).order_by(Trip.date.asc()).all()
+    ps = Payment.query.filter_by(customer_id=cid).order_by(Payment.date.asc()).all()
+    tn = sum(t.nauloon for t in tr)
+    tp = sum(p.amount for p in ps)
+    return render_template('customer_report.html', customer=c, trips=tr, payments=ps, total_nauloon=tn, total_paid=tp, remaining=tn-tp)
+
 @app.route('/customers/<int:cid>/export')
 @login_required
 def export_customer_report(cid):
@@ -668,14 +689,12 @@ def export_customer_report(cid):
     start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
     end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
     
-    # رحلات العميل في الفترة
     trips = Trip.query.filter(
         Trip.customer_id == cid,
         Trip.date >= start_date,
         Trip.date <= end_date
     ).order_by(Trip.date.asc()).all()
     
-    # دفعات العميل في الفترة
     payments = Payment.query.filter(
         Payment.customer_id == cid,
         Payment.date >= start_date,
@@ -688,40 +707,33 @@ def export_customer_report(cid):
     
     doc = Document()
     
-    # العنوان
     title = doc.add_heading('ADAM CARGO', 0)
     title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     company = doc.add_heading('شركة آدم للشحن والنقل', 1)
     company.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # اسم العميل
     customer_name = doc.add_heading(f'تقرير العميل: {c.name}', 2)
     customer_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # الفترة
     period = doc.add_paragraph(f'من {start_date_str} إلى {end_date_str}')
     period.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # رقم التقرير
     report_number = datetime.now().strftime('%Y%m%d%H%M%S')
     report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
     report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
-    # تاريخ الإنشاء
     report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
     report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
     
     doc.add_paragraph('')
     
-    # معلومات العميل
     doc.add_heading('معلومات العميل', 3)
     doc.add_paragraph(f'اسم العميل: {c.name}')
     doc.add_paragraph(f'رقم الهاتف: {c.phone or "-"}')
     
     doc.add_paragraph('')
     
-    # ملخص
     total_nauloon = sum(t.nauloon for t in trips)
     total_paid = sum(p.amount for p in payments)
     remaining = total_nauloon - total_paid
@@ -734,7 +746,6 @@ def export_customer_report(cid):
     
     doc.add_paragraph('')
     
-    # جدول الرحلات
     if trips:
         doc.add_heading('تفاصيل الرحلات', 3)
         table = doc.add_table(rows=1, cols=8)
@@ -758,7 +769,6 @@ def export_customer_report(cid):
     
     doc.add_paragraph('')
     
-    # جدول الدفعات
     if payments:
         doc.add_heading('تفاصيل الدفعات', 3)
         table2 = doc.add_table(rows=1, cols=4)
@@ -780,6 +790,7 @@ def export_customer_report(cid):
     doc.save(fn)
     
     return send_file(fn, as_attachment=True)
+
 @app.route('/api/customers/<int:cid>/delete', methods=['POST'])
 @admin_required
 def delete_customer(cid):
@@ -790,6 +801,20 @@ def delete_customer(cid):
     db.session.commit()
     flash('تم الحذف','success')
     return redirect(url_for('customers'))
+
+@app.route('/payments/add', methods=['POST'])
+@login_required
+def add_payment():
+    cid = request.form.get('customer_id')
+    tid = request.form.get('trip_id')
+    if not cid:
+        flash('يرجى اختيار العميل','danger')
+        return redirect(request.referrer or url_for('customers'))
+    amt = float(request.form.get('amount', 0) or 0)
+    db.session.add(Payment(date=datetime.strptime(request.form['date'],'%Y-%m-%d').date(), trip_id=tid if tid else None, customer_id=cid, amount=amt, notes=request.form.get('notes','')))
+    db.session.commit()
+    flash('تمت الإضافة','success')
+    return redirect(url_for('customer_report', cid=cid))
 
 @app.route('/payments/add', methods=['POST'])
 @login_required
