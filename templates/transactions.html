@@ -1,203 +1,122 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2>💰 المعاملات المالية</h2>
-    <div>
-        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exportModal">📥 تصدير Word</button>
-        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModal">➕ إضافة معاملة</button>
-    </div>
-</div>
-
-<!-- Modal تصدير -->
-<div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">تصدير المعاملات المالية</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form action="{{ url_for('export_transactions_report') }}" method="GET">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">من تاريخ</label>
-                        <input type="date" class="form-control" name="start_date" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">إلى تاريخ</label>
-                        <input type="date" class="form-control" name="end_date" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-success">تصدير</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
 <div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card p-3 text-center bg-light">
-            <h5>💸 إجمالي المدفوع (Given)</h5>
-            <h3 class="text-danger">{{ total_given }} ج.م</h3>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card p-3 text-center bg-light">
-            <h5>💰 إجمالي المستلم (Received)</h5>
-            <h3 class="text-success">{{ total_received }} ج.م</h3>
-        </div>
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <h2>💳 تقرير أقساط العربيات - تفاصيل كاملة</h2>
+        <a href="{{ url_for('export_installments_report') }}" class="btn btn-success">
+            📥 تصدير Word
+        </a>
     </div>
 </div>
 
-{% if transactions %}
-<table class="table table-striped">
-    <thead>
-        <tr>
-            <th>التاريخ</th>
-            <th>الشخص</th>
-            <th>النوع</th>
-            <th>المبلغ</th>
-            <th>الوصف</th>
-            <th>الحساب البنكي</th>
-            <th>إجراءات</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for txn in transactions %}
-        <tr>
-            <td>{{ txn.date }}</td>
-            <td>
-                <a href="{{ url_for('person_transactions', person_name=txn.person_name) }}" class="fw-bold text-primary">
-                    {{ txn.person_name }}
-                </a>
-            </td>
-            <td>
-                {% if txn.type == 'given' %}
-                    <span class="badge bg-danger">مدفوع</span>
-                {% else %}
-                    <span class="badge bg-success">مستلم</span>
-                {% endif %}
-            </td>
-            <td>{{ txn.amount }}</td>
-            <td>{{ txn.description }}</td>
-            <td>{{ txn.bank_account.bank_name if txn.bank_account else 'نقدي' }}</td>
-            <td>
-                {% if session.role in ['admin', 'root'] %}
-                    <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editTxnModal{{ txn.id }}">
-                        ✏️ تعديل
-                    </button>
-                    <form action="{{ url_for('delete_transaction', tid=txn.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه المعاملة؟');">
-                        <button type="submit" class="btn btn-sm btn-danger">🗑️ حذف</button>
-                    </form>
-                {% else %}
-                    <span class="text-muted">-</span>
-                {% endif %}
-            </td>
-        </tr>
-
-        <!-- Modal تعديل المعاملة -->
-        <div class="modal fade" id="editTxnModal{{ txn.id }}" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">تعديل المعاملة #{{ txn.id }}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <form action="{{ url_for('edit_transaction', tid=txn.id) }}" method="POST">
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">التاريخ</label>
-                                <input type="date" class="form-control" name="date" value="{{ txn.date }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">اسم الشخص</label>
-                                <input type="text" class="form-control" name="person_name" value="{{ txn.person_name }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">النوع</label>
-                                <select class="form-select" name="type" required>
-                                    <option value="given" {% if txn.type == 'given' %}selected{% endif %}>💸 مدفوع (Given)</option>
-                                    <option value="received" {% if txn.type == 'received' %}selected{% endif %}>💰 مستلم (Received)</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">المبلغ</label>
-                                <input type="number" step="0.01" class="form-control" name="amount" value="{{ txn.amount }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">الوصف</label>
-                                <input type="text" class="form-control" name="description" value="{{ txn.description or '' }}">
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                            <button type="submit" class="btn btn-warning">حفظ التعديلات</button>
-                        </div>
-                    </form>
-                </div>
+<!-- ملخص عام -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-primary text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>🚗 عدد العربيات</h5>
+                <h3>{{ cars|length }}</h3>
             </div>
         </div>
-        {% endfor %}
-    </tbody>
-</table>
-{% else %}
-<div class="alert alert-info text-center">
-    لا توجد معاملات مالية مسجلة حتى الآن.
-</div>
-{% endif %}
-
-<!-- Modal إضافة معاملة -->
-<div class="modal fade" id="addTransactionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="POST" action="{{ url_for('add_transaction') }}">
-                <div class="modal-header">
-                    <h5 class="modal-title">إضافة معاملة مالية جديدة</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label class="form-label">التاريخ</label>
-                        <input type="date" name="date" class="form-control" value="{{ date.today().isoformat() }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">اسم الشخص</label>
-                        <input type="text" name="person_name" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">النوع</label>
-                        <select name="type" class="form-select">
-                            <option value="given">💸 مدفوع (Given)</option>
-                            <option value="received">💰 مستلم (Received)</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">المبلغ</label>
-                        <input type="number" name="amount" class="form-control" step="0.01" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">الحساب البنكي (اختياري)</label>
-                        <select name="bank_account_id" class="form-select">
-                            <option value="">بدون حساب (نقدي)</option>
-                            {% for acc in bank_accounts %}
-                            <option value="{{ acc.id }}">{{ acc.bank_name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">الوصف</label>
-                        <textarea name="description" class="form-control" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                    <button type="submit" class="btn btn-primary">حفظ</button>
-                </div>
-            </form>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>📅 إجمالي الأقساط</h5>
+                <h3>{{ installments|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>✅ مدفوع</h5>
+                <h3>{{ paid_installments|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-danger text-white shadow-sm">
+            <div class="card-body text-center">
+                <h5>⏳ غير مدفوع</h5>
+                <h3>{{ unpaid_installments|length }}</h3>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- تفاصيل الأقساط لكل عربية -->
+{% for car in cars %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-warning text-white">
+        <h5 class="mb-0">🚗 {{ car.plate_number }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <strong>سعر العربية:</strong> {{ car.purchase_price }}
+            </div>
+            <div class="col-md-3">
+                <strong>المقدم:</strong> {{ car.down_payment }}
+            </div>
+            <div class="col-md-3">
+                <strong>المدفوع:</strong> {{ car.total_paid }}
+            </div>
+            <div class="col-md-3">
+                <strong>المتبقي:</strong> {{ car.remaining_bank }}
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>تاريخ الاستحقاق</th>
+                        <th>المبلغ</th>
+                        <th>الحالة</th>
+                        <th>تاريخ الدفع</th>
+                        <th>ملاحظات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% set car_installments = installments|selectattr('car_id', 'equalto', car.id)|list %}
+                    {% for inst in car_installments %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td>{{ inst.due_date }}</td>
+                        <td>{{ inst.amount }}</td>
+                        <td>
+                            {% if inst.paid %}
+                                <span class="badge bg-success">✅ مدفوع</span>
+                            {% else %}
+                                <span class="badge bg-danger">⏳ غير مدفوع</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ inst.payment_date or '-' }}</td>
+                        <td>{{ inst.notes or '-' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">لا توجد أقساط مسجلة لهذه العربية</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if car_installments %}
+                <tfoot>
+                    <tr class="table-warning">
+                        <td colspan="2"><strong>إجمالي أقساط {{ car.plate_number }}</strong></td>
+                        <td><strong>{{ car_installments|sum(attribute='amount') }}</strong></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
 {% endblock %}
