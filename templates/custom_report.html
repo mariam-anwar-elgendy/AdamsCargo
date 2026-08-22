@@ -72,8 +72,19 @@
     </a>
 </div>
 
-<!-- جدول الرحلات -->
-<div class="card shadow-sm">
+<!-- تقرير كل عربية لوحدها -->
+{% set cars_list = [] %}
+{% for trip in trips %}
+    {% if trip.car and trip.car.plate_number not in cars_list %}
+        {% set _ = cars_list.append(trip.car.plate_number) %}
+    {% endif %}
+{% endfor %}
+
+{% for car_plate in cars_list %}
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">🚗 {{ car_plate }}</h5>
+    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -81,7 +92,6 @@
                     <tr>
                         <th>#</th>
                         <th>التاريخ</th>
-                        <th>العربية</th>
                         <th>السائق</th>
                         <th>العميل</th>
                         <th>من</th>
@@ -94,11 +104,11 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for trip in trips %}
+                    {% set car_trips = trips|selectattr('car.plate_number', 'equalto', car_plate)|list %}
+                    {% for trip in car_trips %}
                     <tr>
                         <td>{{ loop.index }}</td>
                         <td>{{ trip.date }}</td>
-                        <td>{{ trip.car.plate_number if trip.car else '-' }}</td>
                         <td>{{ trip.driver_name }}</td>
                         <td>{{ trip.customer.name if trip.customer else '-' }}</td>
                         <td>{{ trip.from_location or '-' }}</td>
@@ -113,18 +123,20 @@
                 </tbody>
                 <tfoot>
                     <tr class="table-warning">
-                        <td colspan="7"><strong>الإجمالي</strong></td>
-                        <td><strong>{{ total_nauloon }}</strong></td>
-                        <td><strong>{{ total_solar }}</strong></td>
-                        <td><strong>{{ total_expenses }}</strong></td>
-                        <td><strong>{{ total_driver_pay }}</strong></td>
-                        <td><strong>{{ total_net }}</strong></td>
+                        <td colspan="6"><strong>إجمالي {{ car_plate }}</strong></td>
+                        <td><strong>{{ car_trips|sum(attribute='nauloon') }}</strong></td>
+                        <td><strong>{{ car_trips|sum(attribute='solar') }}</strong></td>
+                        <td><strong>{{ car_trips|sum(attribute='expenses') }}</strong></td>
+                        <td><strong>{{ car_trips|sum(attribute='driver_pay') }}</strong></td>
+                        <td><strong>{{ car_trips|sum(attribute='net_profit') }}</strong></td>
                     </tr>
                 </tfoot>
             </table>
         </div>
     </div>
 </div>
+{% endfor %}
+
 {% else %}
 <div class="alert alert-info text-center">
     {% if start_date and end_date %}
