@@ -495,6 +495,63 @@ def financial_transactions():
     bank_accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
     return render_template('transactions.html', transactions=txns, total_given=total_given, total_received=total_received, bank_accounts=bank_accounts, date=date.today())
 
+@app.route('/transactions/export')
+@login_required
+def export_transactions_report():
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
+    if not start_date_str or not end_date_str:
+        flash('يرجى تحديد التاريخين','danger')
+        return redirect(url_for('financial_transactions'))
+    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+    txns = FinancialTransaction.query.filter(FinancialTransaction.date >= start_date, FinancialTransaction.date <= end_date).order_by(FinancialTransaction.date.asc()).all()
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    doc = Document()
+    title = doc.add_heading('ADAM CARGO', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    company = doc.add_heading('شركة آدم للشحن والنقل', 1)
+    company.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_title = doc.add_heading(f'تقرير المعاملات المالية من {start_date_str} إلى {end_date_str}', 2)
+    report_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_number = datetime.now().strftime('%Y%m%d%H%M%S')
+    report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
+    report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
+    report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph('')
+    total_given = sum(t.amount for t in txns if t.type == 'given')
+    total_received = sum(t.amount for t in txns if t.type == 'received')
+    doc.add_heading('ملخص التقرير', 3)
+    doc.add_paragraph(f'عدد المعاملات: {len(txns)}')
+    doc.add_paragraph(f'إجمالي المدفوع: {total_given}')
+    doc.add_paragraph(f'إجمالي المستلم: {total_received}')
+    doc.add_paragraph(f'الصافي: {total_received - total_given}')
+    doc.add_paragraph('')
+    if txns:
+        doc.add_heading('تفاصيل المعاملات', 3)
+        table = doc.add_table(rows=1, cols=7)
+        table.style = 'Light Shading Accent 1'
+        headers = ['#', 'التاريخ', 'الشخص', 'النوع', 'المبلغ', 'الوصف', 'الحساب البنكي']
+        for i, header in enumerate(headers):
+            cell = table.rows[0].cells[i]
+            cell.text = header
+            cell.paragraphs[0].runs[0].bold = True
+        for idx, txn in enumerate(txns, 1):
+            row = table.add_row().cells
+            row[0].text = str(idx)
+            row[1].text = str(txn.date)
+            row[2].text = txn.person_name
+            row[3].text = 'مدفوع' if txn.type == 'given' else 'مستلم'
+            row[4].text = str(txn.amount)
+            row[5].text = txn.description or '-'
+            row[6].text = txn.bank_account.bank_name if txn.bank_account else 'نقدي'
+    fn = f'transactions_report_{start_date_str}_to_{end_date_str}.docx'
+    doc.save(fn)
+    return send_file(fn, as_attachment=True)
+
 @app.route('/transactions/<person_name>')
 @login_required
 def person_transactions(person_name):
@@ -1190,6 +1247,84 @@ def installments_report():
     paid_installments = [i for i in all_installments if i.paid]
     unpaid_installments = [i for i in all_installments if not i.paid]
     return render_template('installments_report.html', cars=cars, installments=all_installments, paid_installments=paid_installments, unpaid_installments=unpaid_installments, total_purchase_price=total_purchase_price, total_down_payment=total_down_payment, total_paid_all=total_paid_all, total_remaining_all=total_remaining_all, total_installments_amount=total_installments_amount)
+
+@app.route('/reports/installments/export')
+@login_required
+def export_installments_report():
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    cars = Car.query.order_by(Car.plate_number.asc()).all()
+    all_installments = Installment.query.order_by(Installment.due_date.asc()).all()
+    doc = Document()
+    title = doc.add_heading('ADAM CARGO', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    company = doc.add_heading('شركة آدم للشحن والنقل', 1)
+    company.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_title = doc.add_heading('تقرير أقساط العربيات', 2)
+    report_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_number = datetime.now().strftime('%Y%m%d%H%M%S')
+    report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
+    report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
+    report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph('')
+    total_purchase_price = sum(c.purchase_price for c in cars)
+    total_down_payment = sum(c.down_payment for c in cars)
+    total_paid_all = sum(c.total_paid for c in cars)
+    total_remaining_all = sum(c.remaining_bank for c in cars)
+    total_installments_amount = sum(i.amount for i in all_installments)
+    doc.add_heading('ملخص عام', 3)
+    doc.add_paragraph(f'عدد العربيات: {len(cars)}')
+    doc.add_paragraph(f'إجمالي أسعار العربيات: {total_purchase_price}')
+    doc.add_paragraph(f'إجمالي المقدم: {total_down_payment}')
+    doc.add_paragraph(f'إجمالي المدفوع: {total_paid_all}')
+    doc.add_paragraph(f'إجمالي المتبقي: {total_remaining_all}')
+    doc.add_paragraph(f'إجمالي الأقساط: {total_installments_amount}')
+    doc.add_paragraph('')
+    doc.add_heading('ملخص العربيات', 3)
+    table = doc.add_table(rows=1, cols=7)
+    table.style = 'Light Shading Accent 1'
+    headers = ['#', 'رقم اللوحة', 'سعر العربية', 'المقدم', 'المدفوع', 'المتبقي', 'الحالة']
+    for i, header in enumerate(headers):
+        cell = table.rows[0].cells[i]
+        cell.text = header
+        cell.paragraphs[0].runs[0].bold = True
+    for idx, car in enumerate(cars, 1):
+        row = table.add_row().cells
+        row[0].text = str(idx)
+        row[1].text = car.plate_number
+        row[2].text = str(car.purchase_price)
+        row[3].text = str(car.down_payment)
+        row[4].text = str(car.total_paid)
+        row[5].text = str(car.remaining_bank)
+        row[6].text = 'تم التصفية' if car.remaining_bank <= 0 else 'جاري السداد'
+    doc.add_paragraph('')
+    for car in cars:
+        car_installments = [i for i in all_installments if i.car_id == car.id]
+        doc.add_heading(f'أقساط العربية: {car.plate_number}', 3)
+        if car_installments:
+            table2 = doc.add_table(rows=1, cols=6)
+            table2.style = 'Light Shading Accent 1'
+            headers2 = ['#', 'تاريخ الاستحقاق', 'المبلغ', 'الحالة', 'تاريخ الدفع', 'ملاحظات']
+            for i, header in enumerate(headers2):
+                cell = table2.rows[0].cells[i]
+                cell.text = header
+                cell.paragraphs[0].runs[0].bold = True
+            for idx, inst in enumerate(car_installments, 1):
+                row = table2.add_row().cells
+                row[0].text = str(idx)
+                row[1].text = str(inst.due_date)
+                row[2].text = str(inst.amount)
+                row[3].text = 'مدفوع' if inst.paid else 'غير مدفوع'
+                row[4].text = str(inst.payment_date) if inst.payment_date else '-'
+                row[5].text = inst.notes or '-'
+        else:
+            doc.add_paragraph('لا توجد أقساط مسجلة لهذه العربية')
+        doc.add_paragraph('')
+    fn = f'installments_report_{date.today()}.docx'
+    doc.save(fn)
+    return send_file(fn, as_attachment=True)
 
 @app.route('/reports/custom')
 @login_required
