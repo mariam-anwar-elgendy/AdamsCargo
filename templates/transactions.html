@@ -3,7 +3,38 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>💰 المعاملات المالية</h2>
-    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModal">➕ إضافة معاملة</button>
+    <div>
+        <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#exportModal">📥 تصدير Word</button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTransactionModal">➕ إضافة معاملة</button>
+    </div>
+</div>
+
+<!-- Modal تصدير -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تصدير المعاملات المالية</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form action="{{ url_for('export_transactions_report') }}" method="GET">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">من تاريخ</label>
+                        <input type="date" class="form-control" name="start_date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">إلى تاريخ</label>
+                        <input type="date" class="form-control" name="end_date" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">تصدير</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <div class="row mb-4">
