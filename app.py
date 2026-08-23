@@ -694,11 +694,15 @@ def edit_trip(id):
 @app.route('/api/trips/<int:tid>/delete', methods=['POST'])
 @admin_required
 def delete_trip(tid):
-    t = Trip.query.get_or_404(tid)
-    Payment.query.filter_by(trip_id=tid).delete()
-    db.session.delete(t)
-    db.session.commit()
-    flash('تم الحذف','success')
+    try:
+        t = Trip.query.get_or_404(tid)
+        Payment.query.filter_by(trip_id=tid).delete()
+        db.session.delete(t)
+        db.session.commit()
+        flash('تم الحذف','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('trips_list'))
 
 @app.route('/customers')
@@ -807,12 +811,19 @@ def export_customer_report(cid):
 @app.route('/api/customers/<int:cid>/delete', methods=['POST'])
 @admin_required
 def delete_customer(cid):
-    c = Customer.query.get_or_404(cid)
-    Payment.query.filter_by(customer_id=cid).delete()
-    Trip.query.filter_by(customer_id=cid).delete()
-    db.session.delete(c)
-    db.session.commit()
-    flash('تم الحذف','success')
+    try:
+        c = Customer.query.get_or_404(cid)
+        trips = Trip.query.filter_by(customer_id=cid).all()
+        for trip in trips:
+            Payment.query.filter_by(trip_id=trip.id).delete()
+        Payment.query.filter_by(customer_id=cid).delete()
+        Trip.query.filter_by(customer_id=cid).delete()
+        db.session.delete(c)
+        db.session.commit()
+        flash('تم الحذف','success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}','danger')
     return redirect(url_for('customers'))
 
 @app.route('/payments/add', methods=['POST'])
@@ -895,8 +906,15 @@ def edit_car(cid):
 def delete_car(cid):
     try:
         c = Car.query.get_or_404(cid)
+        # حذف الدفعات المرتبطة بالرحلات
+        trips = Trip.query.filter_by(car_id=cid).all()
+        for trip in trips:
+            Payment.query.filter_by(trip_id=trip.id).delete()
+        # حذف الرحلات
         Trip.query.filter_by(car_id=cid).delete()
+        # حذف الأقساط
         Installment.query.filter_by(car_id=cid).delete()
+        # حذف العربية
         db.session.delete(c)
         db.session.commit()
         flash('تم الحذف','success')
