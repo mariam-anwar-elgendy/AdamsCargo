@@ -8,11 +8,7 @@
     </div>
 </div>
 
-<!-- جدول الرحلات -->
 <div class="card shadow-sm">
-    <div class="card-header bg-primary text-white">
-        <h5 class="mb-0">📋 جميع الرحلات (مرتبة من الأقدم للأحدث)</h5>
-    </div>
     <div class="card-body">
         <div class="table-responsive">
             <table class="table table-hover">
@@ -26,9 +22,6 @@
                         <th>من</th>
                         <th>إلى</th>
                         <th>النولون</th>
-                        <th>السولار</th>
-                        <th>المصاريف</th>
-                        <th>أجرة السائق</th>
                         <th>الصافي</th>
                         <th>إجراءات</th>
                     </tr>
@@ -44,47 +37,14 @@
                         <td>{{ trip.from_location or '-' }}</td>
                         <td>{{ trip.to_location or '-' }}</td>
                         <td>{{ trip.nauloon }}</td>
-                        <td>{{ trip.solar }}</td>
-                        <td>{{ trip.expenses }}</td>
-                        <td>{{ trip.driver_pay }}</td>
                         <td>{{ trip.net_profit }}</td>
                         <td>
-                            <!-- زر التعديل يظهر للأدمن والرووت، وللمستخدم صاحب الرحلة -->
-                            {% if session.role in ['admin', 'root'] or trip.created_by == session.user_id %}
-                                <a href="{{ url_for('edit_trip', id=trip.id) }}" class="btn btn-sm btn-warning">✏️ تعديل</a>
-                            {% endif %}
-
-                            <!-- زر الحذف للأدمن والرووت فقط -->
-                            {% if session.role in ['admin', 'root'] %}
-                                <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ trip.id }}">
-                                    🗑️ حذف
-                                </button>
-                            {% endif %}
+                            <a href="{{ url_for('edit_trip', id=trip.id) }}" class="btn btn-sm btn-warning">✏️ تعديل</a>
+                            <form action="{{ url_for('delete_trip', tid=trip.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه الرحلة؟');">
+                                <button type="submit" class="btn btn-sm btn-danger">🗑️ حذف</button>
+                            </form>
                         </td>
                     </tr>
-
-                    <!-- Modal حذف (للأدمن والرووت فقط) -->
-                    {% if session.role in ['admin', 'root'] %}
-                    <div class="modal fade" id="deleteModal{{ trip.id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">حذف الرحلة #{{ trip.id }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>هل أنت متأكد من حذف هذه الرحلة؟</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                    <form action="{{ url_for('delete_trip', tid=trip.id) }}" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-danger">حذف</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
                     {% endfor %}
                 </tbody>
             </table>
