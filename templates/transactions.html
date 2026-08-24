@@ -86,6 +86,7 @@
             <td>{{ txn.bank_account.bank_name if txn.bank_account else 'نقدي' }}</td>
             <td>
                 {% if session.role in ['admin', 'root'] %}
+                    <a href="{{ url_for('export_person_transactions', person_name=txn.person_name) }}" class="btn btn-sm btn-info">📥 طباعة</a>
                     <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editTxnModal{{ txn.id }}">
                         ✏️ تعديل
                     </button>
