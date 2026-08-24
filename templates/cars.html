@@ -56,9 +56,9 @@
                             <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#addInstallmentModal{{ car.id }}">
                                 ➕ قسط
                             </button>
-                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ car.id }}">
-                                🗑️ حذف
-                            </button>
+                            <form action="{{ url_for('delete_car', cid=car.id) }}" method="POST" class="d-inline" onsubmit="return confirm('هل أنت متأكد من حذف هذه العربية؟');">
+                                <button type="submit" class="btn btn-sm btn-danger">🗑️ حذف</button>
+                            </form>
                             {% endif %}
                         </td>
                     </tr>
@@ -91,12 +91,12 @@
                                             <input type="number" step="0.01" class="form-control" name="bank_installment" value="{{ car.bank_installment }}">
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label">المتبقي</label>
-                                            <input type="number" step="0.01" class="form-control" name="remaining_bank" value="{{ car.remaining_bank }}">
+                                            <label class="form-label">المدفوع</label>
+                                            <input type="number" step="0.01" class="form-control" name="total_paid" value="{{ car.total_paid }}">
                                         </div>
                                         <div class="mb-3">
-                                            <label class="form-label">إجمالي المدفوع</label>
-                                            <input type="number" step="0.01" class="form-control" name="total_paid" value="{{ car.total_paid }}">
+                                            <label class="form-label">المتبقي</label>
+                                            <input type="number" step="0.01" class="form-control" name="remaining_bank" value="{{ car.remaining_bank }}">
                                         </div>
                                         <div class="mb-3">
                                             <label class="form-label">ملاحظات</label>
@@ -130,6 +130,10 @@
                                             <input type="date" class="form-control" name="due_date" required>
                                         </div>
                                         <div class="mb-3">
+                                            <label class="form-label">تاريخ الدفع</label>
+                                            <input type="date" class="form-control" name="payment_date">
+                                        </div>
+                                        <div class="mb-3">
                                             <label class="form-label">المبلغ</label>
                                             <input type="number" step="0.01" class="form-control" name="amount" required>
                                         </div>
@@ -152,30 +156,6 @@
                                         <button type="submit" class="btn btn-success">إضافة القسط</button>
                                     </div>
                                 </form>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
-
-                    <!-- Modal حذف -->
-                    {% if session.role in ['admin', 'root'] %}
-                    <div class="modal fade" id="deleteModal{{ car.id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">حذف العربية - {{ car.plate_number }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <p>هل أنت متأكد من حذف هذه العربية؟</p>
-                                    <p class="text-danger">⚠️ سيتم حذف كل الرحلات والأقساط المرتبطة بها!</p>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                    <form action="{{ url_for('delete_car', cid=car.id) }}" method="POST" class="d-inline">
-                                        <button type="submit" class="btn btn-danger">حذف</button>
-                                    </form>
-                                </div>
                             </div>
                         </div>
                     </div>
