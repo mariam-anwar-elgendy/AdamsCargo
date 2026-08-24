@@ -1676,6 +1676,7 @@ def health_check():
 
 def init_db():
     with app.app_context():
+        # إضافة الأعمدة الجديدة لجدول cars
         try:
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS purchase_price FLOAT DEFAULT 0'))
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS down_payment FLOAT DEFAULT 0'))
@@ -1685,6 +1686,8 @@ def init_db():
         except Exception as e:
             print(f"⚠️ خطأ في تحديث جدول cars: {e}")
             db.session.rollback()
+        
+        # تحديث جدول installments
         try:
             db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT \'\''))
             db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS paid BOOLEAN DEFAULT false'))
@@ -1695,40 +1698,46 @@ def init_db():
         except Exception as e:
             print(f"⚠️ خطأ في تحديث جدول installments: {e}")
             db.session.rollback()
-        # تحديث المتبقي لكل العربيات
+        
+        # إصلاح بيانات العربيات
         try:
             cars = Car.query.all()
             for car in cars:
+                # إجمالي الأقساط المدفوعة
+                paid_installments = Installment.query.filter_by(car_id=car.id, paid=True).all()
+                total_installments_paid = sum(i.amount for i in paid_installments)
+                # المدفوع الكلي = المقدم + الأقساط المدفوعة
+                car.total_paid = car.down_payment + total_installments_paid
+                # المتبقي = سعر العربية - المدفوع الكلي
                 car.remaining_bank = car.purchase_price - car.total_paid
                 if car.remaining_bank < 0:
                     car.remaining_bank = 0
             db.session.commit()
-            print("✅ تم تحديث المتبقي لكل العربيات")
+            print("✅ تم إصلاح بيانات العربيات")
         except Exception as e:
-            print(f"⚠️ خطأ في تحديث المتبقي: {e}")
+            print(f"⚠️ خطأ في إصلاح بيانات العربيات: {e}")
             db.session.rollback()
+        
         db.create_all()
+
         if not User.query.filter_by(username='admin').first():
             a = User(username='admin', full_name='مدير النظام', role='admin')
             a.set_password('admin123')
             db.session.add(a)
             db.session.commit()
             print("✅ Admin: admin / admin123")
+
         if not User.query.filter_by(username='hany').first():
             r = User(username='hany', full_name='Hany (Owner)', role='root')
             r.set_password('Hany@2024Secure')
             db.session.add(r)
             db.session.commit()
             print("✅ Root user (hany) created")
+
         if BankAccount.query.count() == 0:
             db.session.add(BankAccount(bank_name='بنك مصر', account_number='', current_balance=0))
             db.session.add(BankAccount(bank_name='البنك الأهلي', account_number='', current_balance=0))
             db.session.commit()
             print("✅ تمت إضافة حسابين بنكيين افتراضيين")
-
-init_db()
-threading.Thread(target=scheduler_loop, daemon=True).start()
-print("✅ Scheduler running")
-
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
