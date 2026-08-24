@@ -890,8 +890,10 @@ def edit_car(cid):
         car.purchase_price = float(request.form.get('purchase_price', car.purchase_price) or 0)
         car.down_payment = float(request.form.get('down_payment', car.down_payment) or 0)
         car.bank_installment = float(request.form.get('bank_installment', car.bank_installment) or 0)
-        car.remaining_bank = float(request.form.get('remaining_bank', car.remaining_bank) or 0)
         car.total_paid = float(request.form.get('total_paid', car.total_paid) or 0)
+        car.remaining_bank = car.purchase_price - car.total_paid
+        if car.remaining_bank < 0:
+            car.remaining_bank = 0
         car.notes = request.form.get('notes', car.notes)
         db.session.commit()
         flash('تم تعديل العربية بنجاح','success')
@@ -948,9 +950,9 @@ def add_installment():
         db.session.add(inst)
         db.session.flush()
         if paid:
-            car.remaining_bank -= amt
             car.total_paid += amt
-            if car.remaining_bank <= 0:
+            car.remaining_bank = car.purchase_price - car.total_paid
+            if car.remaining_bank < 0:
                 car.remaining_bank = 0
         if account_id:
             account = BankAccount.query.get(account_id)
@@ -978,7 +980,11 @@ def edit_installment(iid):
         inst.notes = request.form.get('notes', '')
         car = Car.query.get(inst.car_id)
         if car:
-            car.remaining_bank = car.remaining_bank - old_amount + inst.amount
+            if inst.paid:
+                car.total_paid = car.total_paid - old_amount + inst.amount
+                car.remaining_bank = car.purchase_price - car.total_paid
+                if car.remaining_bank < 0:
+                    car.remaining_bank = 0
         db.session.commit()
         flash('تم تعديل القسط بنجاح','success')
     except Exception as e:
@@ -993,8 +999,12 @@ def delete_installment(iid):
         inst = Installment.query.get_or_404(iid)
         car_id = inst.car_id
         car = Car.query.get(car_id)
-        if car and not inst.paid:
-            car.remaining_bank -= inst.amount
+        if car:
+            if inst.paid:
+                car.total_paid -= inst.amount
+                car.remaining_bank = car.purchase_price - car.total_paid
+                if car.remaining_bank < 0:
+                    car.remaining_bank = 0
         db.session.delete(inst)
         db.session.commit()
         flash('تم حذف القسط بنجاح','success')
@@ -1016,9 +1026,9 @@ def pay_installment(iid):
             inst.payment_date = date.today()
         car = Car.query.get(inst.car_id)
         if car:
-            car.remaining_bank -= inst.amount
             car.total_paid += inst.amount
-            if car.remaining_bank <= 0:
+            car.remaining_bank = car.purchase_price - car.total_paid
+            if car.remaining_bank < 0:
                 car.remaining_bank = 0
         account_id = request.form.get('account_id')
         if account_id:
