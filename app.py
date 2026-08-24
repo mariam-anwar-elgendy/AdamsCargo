@@ -552,6 +552,56 @@ def export_transactions_report():
     doc.save(fn)
     return send_file(fn, as_attachment=True)
 
+@app.route('/transactions/<person_name>/export')
+@login_required
+def export_person_transactions(person_name):
+    txns = FinancialTransaction.query.filter_by(person_name=person_name).order_by(FinancialTransaction.date.asc()).all()
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    doc = Document()
+    title = doc.add_heading('ADAM CARGO', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    company = doc.add_heading('شركة آدم للشحن والنقل', 1)
+    company.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_title = doc.add_heading(f'تقرير المعاملات المالية - {person_name}', 2)
+    report_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_number = datetime.now().strftime('%Y%m%d%H%M%S')
+    report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
+    report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
+    report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph('')
+    total_given = sum(t.amount for t in txns if t.type == 'given')
+    total_received = sum(t.amount for t in txns if t.type == 'received')
+    doc.add_heading('ملخص الحساب', 3)
+    doc.add_paragraph(f'اسم الشخص: {person_name}')
+    doc.add_paragraph(f'عدد المعاملات: {len(txns)}')
+    doc.add_paragraph(f'إجمالي المدفوع: {total_given}')
+    doc.add_paragraph(f'إجمالي المستلم: {total_received}')
+    doc.add_paragraph(f'الصافي: {total_received - total_given}')
+    doc.add_paragraph('')
+    if txns:
+        doc.add_heading('تفاصيل المعاملات', 3)
+        table = doc.add_table(rows=1, cols=6)
+        table.style = 'Light Shading Accent 1'
+        headers = ['#', 'التاريخ', 'النوع', 'المبلغ', 'الوصف', 'الحساب البنكي']
+        for i, header in enumerate(headers):
+            cell = table.rows[0].cells[i]
+            cell.text = header
+            cell.paragraphs[0].runs[0].bold = True
+        for idx, txn in enumerate(txns, 1):
+            row = table.add_row().cells
+            row[0].text = str(idx)
+            row[1].text = str(txn.date)
+            row[2].text = 'مدفوع' if txn.type == 'given' else 'مستلم'
+            row[3].text = str(txn.amount)
+            row[4].text = txn.description or '-'
+            row[5].text = txn.bank_account.bank_name if txn.bank_account else 'نقدي'
+    fn = f'transactions_report_{person_name}_{date.today()}.docx'
+    doc.save(fn)
+    return send_file(fn, as_attachment=True)
+
 @app.route('/transactions/<person_name>')
 @login_required
 def person_transactions(person_name):
@@ -1570,6 +1620,18 @@ def init_db():
             print("✅ تم تحديث جدول installments بنجاح")
         except Exception as e:
             print(f"⚠️ خطأ في تحديث جدول installments: {e}")
+            db.session.rollback()
+        # تحديث المتبقي لكل العربيات
+        try:
+            cars = Car.query.all()
+            for car in cars:
+                car.remaining_bank = car.purchase_price - car.total_paid
+                if car.remaining_bank < 0:
+                    car.remaining_bank = 0
+            db.session.commit()
+            print("✅ تم تحديث المتبقي لكل العربيات")
+        except Exception as e:
+            print(f"⚠️ خطأ في تحديث المتبقي: {e}")
             db.session.rollback()
         db.create_all()
         if not User.query.filter_by(username='admin').first():
