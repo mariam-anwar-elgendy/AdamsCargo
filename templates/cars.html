@@ -50,6 +50,7 @@
                         <td>
                             <a href="{{ url_for('car_report', cid=car.id) }}" class="btn btn-sm btn-info">📊 تقرير</a>
                             {% if session.role in ['admin', 'root'] %}
+                            <a href="{{ url_for('export_car_report', cid=car.id) }}" class="btn btn-sm btn-secondary">📥 طباعة</a>
                             <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#editCarModal{{ car.id }}">
                                 ✏️ تعديل
                             </button>
