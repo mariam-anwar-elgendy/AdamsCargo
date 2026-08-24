@@ -911,6 +911,80 @@ def car_report(cid):
     bank_accounts = BankAccount.query.order_by(BankAccount.bank_name.asc()).all()
     return render_template('car_report.html', car=c, trips=tr, trip_count=len(tr), total_nauloon=sum(t.nauloon for t in tr), total_solar=sum(t.solar for t in tr), total_expenses=sum(t.expenses for t in tr), total_driver_pay=sum(t.driver_pay for t in tr), total_net=sum(t.net_profit for t in tr), drivers=drivers, installments=insts, bank_accounts=bank_accounts)
 
+@app.route('/cars/<int:cid>/export')
+@login_required
+def export_car_report(cid):
+    c = Car.query.get_or_404(cid)
+    trips = Trip.query.filter_by(car_id=cid).order_by(Trip.date.asc()).all()
+    installments = Installment.query.filter_by(car_id=cid).order_by(Installment.due_date.asc()).all()
+    from docx import Document
+    from docx.shared import Pt, RGBColor
+    from docx.enum.text import WD_ALIGN_PARAGRAPH
+    doc = Document()
+    title = doc.add_heading('ADAM CARGO', 0)
+    title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    company = doc.add_heading('شركة آدم للشحن والنقل', 1)
+    company.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_title = doc.add_heading(f'تقرير العربية: {c.plate_number}', 2)
+    report_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_number = datetime.now().strftime('%Y%m%d%H%M%S')
+    report_no = doc.add_paragraph(f'رقم التقرير: {report_number}')
+    report_no.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    report_date = doc.add_paragraph(f'تاريخ الإنشاء: {date.today()}')
+    report_date.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    doc.add_paragraph('')
+    doc.add_heading('معلومات العربية', 3)
+    doc.add_paragraph(f'رقم اللوحة: {c.plate_number}')
+    doc.add_paragraph(f'سعر العربية: {c.purchase_price}')
+    doc.add_paragraph(f'المقدم: {c.down_payment}')
+    doc.add_paragraph(f'المدفوع: {c.total_paid}')
+    doc.add_paragraph(f'المتبقي: {c.remaining_bank}')
+    doc.add_paragraph('')
+    doc.add_heading('الأقساط', 3)
+    if installments:
+        table = doc.add_table(rows=1, cols=6)
+        table.style = 'Light Shading Accent 1'
+        headers = ['#', 'تاريخ الاستحقاق', 'المبلغ', 'الحالة', 'تاريخ الدفع', 'ملاحظات']
+        for i, header in enumerate(headers):
+            cell = table.rows[0].cells[i]
+            cell.text = header
+            cell.paragraphs[0].runs[0].bold = True
+        for idx, inst in enumerate(installments, 1):
+            row = table.add_row().cells
+            row[0].text = str(idx)
+            row[1].text = str(inst.due_date)
+            row[2].text = str(inst.amount)
+            row[3].text = 'مدفوع' if inst.paid else 'غير مدفوع'
+            row[4].text = str(inst.payment_date) if inst.payment_date else '-'
+            row[5].text = inst.notes or '-'
+    else:
+        doc.add_paragraph('لا توجد أقساط')
+    doc.add_paragraph('')
+    doc.add_heading('الرحلات', 3)
+    if trips:
+        table2 = doc.add_table(rows=1, cols=8)
+        table2.style = 'Light Shading Accent 1'
+        headers2 = ['#', 'التاريخ', 'السائق', 'العميل', 'من', 'إلى', 'النولون', 'الصافي']
+        for i, header in enumerate(headers2):
+            cell = table2.rows[0].cells[i]
+            cell.text = header
+            cell.paragraphs[0].runs[0].bold = True
+        for idx, trip in enumerate(trips, 1):
+            row = table2.add_row().cells
+            row[0].text = str(idx)
+            row[1].text = str(trip.date)
+            row[2].text = trip.driver_name
+            row[3].text = trip.customer.name if trip.customer else '-'
+            row[4].text = trip.from_location or '-'
+            row[5].text = trip.to_location or '-'
+            row[6].text = str(trip.nauloon)
+            row[7].text = str(trip.net_profit)
+    else:
+        doc.add_paragraph('لا توجد رحلات')
+    fn = f'car_report_{c.plate_number}_{date.today()}.docx'
+    doc.save(fn)
+    return send_file(fn, as_attachment=True)
+
 @app.route('/api/cars/add', methods=['POST'])
 @admin_required
 def add_car():
