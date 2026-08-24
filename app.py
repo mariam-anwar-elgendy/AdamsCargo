@@ -666,13 +666,12 @@ def trips_list():
 @login_required
 def edit_trip(id):
     trip = Trip.query.get_or_404(id)
-    if session.get('role') not in ['admin', 'root'] and trip.created_by != session['user_id']:
-        flash('ليس لديك صلاحية لتعديل هذه الرحلة', 'danger')
-        return redirect(url_for('trips_list'))
     if request.method == 'POST':
         try:
             trip.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
             trip.driver_name = request.form['driver_name']
+            trip.car_id = request.form.get('car_id') or None
+            trip.customer_id = request.form.get('customer_id') or None
             trip.from_location = request.form.get('from_location', '')
             trip.to_location = request.form.get('to_location', '')
             trip.nauloon = float(request.form['nauloon'])
@@ -906,15 +905,11 @@ def edit_car(cid):
 def delete_car(cid):
     try:
         c = Car.query.get_or_404(cid)
-        # حذف الدفعات المرتبطة بالرحلات
         trips = Trip.query.filter_by(car_id=cid).all()
         for trip in trips:
             Payment.query.filter_by(trip_id=trip.id).delete()
-        # حذف الرحلات
         Trip.query.filter_by(car_id=cid).delete()
-        # حذف الأقساط
         Installment.query.filter_by(car_id=cid).delete()
-        # حذف العربية
         db.session.delete(c)
         db.session.commit()
         flash('تم الحذف','success')
