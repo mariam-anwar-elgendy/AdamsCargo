@@ -84,6 +84,7 @@ class Customer(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True)
     phone = db.Column(db.String(20))
     date_added = db.Column(db.DateTime, default=datetime.now)
+    balance_adjustment = db.Column(db.Float, default=0)  # تعديل يدوي للرصيد
 
 class Trip(db.Model):
     __tablename__ = 'trips'
@@ -284,7 +285,7 @@ def backup_database():
                 pd.DataFrame([{'التاريخ':str(t.date),'العربية':t.car.plate_number if t.car else '','السائق':t.driver_name,'العميل':t.customer.name if t.customer else '','من':t.from_location,'إلى':t.to_location,'النولون':t.nauloon,'السولار':t.solar,'المصاريف':t.expenses,'أجرة السائق':t.driver_pay,'الصافي':t.net_profit} for t in trips]).to_excel(w,sheet_name='الرحلات',index=False)
             cust = Customer.query.order_by(Customer.name.asc()).all()
             if cust:
-                pd.DataFrame([{'الاسم':c.name,'التليفون':c.phone} for c in cust]).to_excel(w,sheet_name='العملاء',index=False)
+                pd.DataFrame([{'الاسم':c.name,'التليفون':c.phone,'تعديل الرصيد':c.balance_adjustment} for c in cust]).to_excel(w,sheet_name='العملاء',index=False)
             cars = Car.query.order_by(Car.plate_number.asc()).all()
             if cars:
                 pd.DataFrame([{'اللوحة':c.plate_number,'سعر العربية':c.purchase_price,'المقدم':c.down_payment,'القسط':c.bank_installment,'المدفوع':c.total_paid,'المتبقي':c.remaining_bank} for c in cars]).to_excel(w,sheet_name='العربيات',index=False)
@@ -339,7 +340,7 @@ def get_dashboard_context():
     for c in Customer.query.all():
         tn = db.session.query(db.func.sum(Trip.nauloon)).filter(Trip.customer_id==c.id).scalar() or 0
         tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==c.id).scalar() or 0
-        r = tn - tp
+        r = tn - tp + (c.balance_adjustment or 0)
         if r > 0: pending.append({'customer':c,'remaining':r})
     try:
         upcoming = Installment.query.filter(Installment.paid==False, Installment.due_date>=date.today()).order_by(Installment.due_date.asc()).limit(5).all()
@@ -761,7 +762,8 @@ def customers():
     for c in Customer.query.order_by(Customer.name.asc()).all():
         tn = db.session.query(db.func.sum(Trip.nauloon)).filter(Trip.customer_id==c.id).scalar() or 0
         tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==c.id).scalar() or 0
-        sm.append({'customer':c,'total_nauloon':tn,'total_paid':tp,'remaining':tn-tp})
+        remaining = tn - tp + (c.balance_adjustment or 0)
+        sm.append({'customer':c,'total_nauloon':tn,'total_paid':tp,'remaining':remaining})
     return render_template('customers.html', customers_summary=sm)
 
 @app.route('/customers/<int:cid>')
@@ -772,7 +774,24 @@ def customer_report(cid):
     ps = Payment.query.filter_by(customer_id=cid).order_by(Payment.date.asc()).all()
     tn = sum(t.nauloon for t in tr)
     tp = sum(p.amount for p in ps)
-    return render_template('customer_report.html', customer=c, trips=tr, payments=ps, total_nauloon=tn, total_paid=tp, remaining=tn-tp)
+    remaining = tn - tp + (c.balance_adjustment or 0)
+    return render_template('customer_report.html', customer=c, trips=tr, payments=ps, total_nauloon=tn, total_paid=tp, remaining=remaining)
+
+@app.route('/api/customers/<int:cid>/update_remaining', methods=['POST'])
+@admin_required
+def update_customer_remaining(cid):
+    try:
+        customer = Customer.query.get_or_404(cid)
+        new_remaining = float(request.form.get('remaining', 0) or 0)
+        tn = db.session.query(db.func.sum(Trip.nauloon)).filter(Trip.customer_id==cid).scalar() or 0
+        tp = db.session.query(db.func.sum(Payment.amount)).filter(Payment.customer_id==cid).scalar() or 0
+        customer.balance_adjustment = new_remaining - (tn - tp)
+        db.session.commit()
+        flash('تم تعديل المبلغ المتبقي بنجاح', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'حدث خطأ: {str(e)}', 'danger')
+    return redirect(url_for('customers'))
 
 @app.route('/customers/<int:cid>/export')
 @login_required
@@ -811,7 +830,7 @@ def export_customer_report(cid):
     doc.add_paragraph('')
     total_nauloon = sum(t.nauloon for t in trips)
     total_paid = sum(p.amount for p in payments)
-    remaining = total_nauloon - total_paid
+    remaining = total_nauloon - total_paid + (c.balance_adjustment or 0)
     doc.add_heading('ملخص الحساب', 3)
     doc.add_paragraph(f'عدد الرحلات: {len(trips)}')
     doc.add_paragraph(f'إجمالي النولون: {total_nauloon}')
@@ -1676,7 +1695,6 @@ def health_check():
 
 def init_db():
     with app.app_context():
-        # إضافة الأعمدة الجديدة لجدول cars
         try:
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS purchase_price FLOAT DEFAULT 0'))
             db.session.execute(db.text('ALTER TABLE cars ADD COLUMN IF NOT EXISTS down_payment FLOAT DEFAULT 0'))
@@ -1686,8 +1704,13 @@ def init_db():
         except Exception as e:
             print(f"⚠️ خطأ في تحديث جدول cars: {e}")
             db.session.rollback()
-        
-        # تحديث جدول installments
+        try:
+            db.session.execute(db.text('ALTER TABLE customers ADD COLUMN IF NOT EXISTS balance_adjustment FLOAT DEFAULT 0'))
+            db.session.commit()
+            print("✅ تم إضافة عمود balance_adjustment لجدول customers")
+        except Exception as e:
+            print(f"⚠️ خطأ في تحديث جدول customers: {e}")
+            db.session.rollback()
         try:
             db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT \'\''))
             db.session.execute(db.text('ALTER TABLE installments ADD COLUMN IF NOT EXISTS paid BOOLEAN DEFAULT false'))
@@ -1698,46 +1721,28 @@ def init_db():
         except Exception as e:
             print(f"⚠️ خطأ في تحديث جدول installments: {e}")
             db.session.rollback()
-        
-        # إصلاح بيانات العربيات
-        try:
-            cars = Car.query.all()
-            for car in cars:
-                # إجمالي الأقساط المدفوعة
-                paid_installments = Installment.query.filter_by(car_id=car.id, paid=True).all()
-                total_installments_paid = sum(i.amount for i in paid_installments)
-                # المدفوع الكلي = المقدم + الأقساط المدفوعة
-                car.total_paid = car.down_payment + total_installments_paid
-                # المتبقي = سعر العربية - المدفوع الكلي
-                car.remaining_bank = car.purchase_price - car.total_paid
-                if car.remaining_bank < 0:
-                    car.remaining_bank = 0
-            db.session.commit()
-            print("✅ تم إصلاح بيانات العربيات")
-        except Exception as e:
-            print(f"⚠️ خطأ في إصلاح بيانات العربيات: {e}")
-            db.session.rollback()
-        
         db.create_all()
-
         if not User.query.filter_by(username='admin').first():
             a = User(username='admin', full_name='مدير النظام', role='admin')
             a.set_password('admin123')
             db.session.add(a)
             db.session.commit()
             print("✅ Admin: admin / admin123")
-
         if not User.query.filter_by(username='hany').first():
             r = User(username='hany', full_name='Hany (Owner)', role='root')
             r.set_password('Hany@2024Secure')
             db.session.add(r)
             db.session.commit()
             print("✅ Root user (hany) created")
-
         if BankAccount.query.count() == 0:
             db.session.add(BankAccount(bank_name='بنك مصر', account_number='', current_balance=0))
             db.session.add(BankAccount(bank_name='البنك الأهلي', account_number='', current_balance=0))
             db.session.commit()
             print("✅ تمت إضافة حسابين بنكيين افتراضيين")
+
+init_db()
+threading.Thread(target=scheduler_loop, daemon=True).start()
+print("✅ Scheduler running")
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
